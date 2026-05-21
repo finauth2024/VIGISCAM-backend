@@ -1,0 +1,32 @@
+// VIGISCAM Backend — Prisma schema
+// Phase 0: datasource/generator wiring + the foundational AuditLog table.
+// Phase 1 adds auth, tenants, users, devices, sessions, evidence, etc.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+/// Foundational, cross-cutting audit table. Every sensitive action across the
+/// platform writes one row here (see docs/05-GUARDRAILS-HARDENING.md §9).
+model AuditLog {
+  id         String   @id @default(uuid()) @db.Uuid
+  actorId    String?  @db.Uuid
+  actorType  String?
+  action     String
+  targetType String?
+  targetId   String?
+  ipAddress  String?
+  userAgent  String?
+  metadata   Json?
+  createdAt  DateTime @default(now())
+
+  @@index([actorId])
+  @@index([action])
+  @@index([createdAt])
+  @@map("audit_logs")
+}

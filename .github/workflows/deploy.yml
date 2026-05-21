@@ -1,0 +1,56 @@
+name: Deploy
+
+# Manual deploy for now. Once Azure + the secrets/vars below are configured,
+# add a `push: branches: [main]` trigger to deploy automatically.
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Target environment
+        type: choice
+        options: [dev, staging, prod]
+        default: dev
+
+# Required repository configuration (see infra/README.md):
+#   Secrets (OIDC federated credential — no stored passwords):
+#     AZURE_CLIENT_ID, AZURE_TENANT_ID, AZURE_SUBSCRIPTION_ID
+#   Variables:
+#     ACR_NAME, RESOURCE_GROUP, CONTAINER_APP_NAME
+
+jobs:
+  deploy:
+    name: Deploy to Azure Container Apps
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Build & push image in Azure Container Registry
+        run: |
+          az acr build \
+            --registry ${{ vars.ACR_NAME }} \
+            --image vigiscam-backend:${{ github.sha }} \
+            --image vigiscam-backend:latest \
+            .
+
+      - name: Apply database migrations
+        run: |
+          echo "Run 'npx prisma migrate deploy' as a one-off job against the"
+          echo "target Azure PostgreSQL instance before/with the rollout."
+
+      - name: Deploy to Azure Container Apps
+        run: |
+          az containerapp update \
+            --name ${{ vars.CONTAINER_APP_NAME }} \
+            --resource-group ${{ vars.RESOURCE_GROUP }} \
+            --image ${{ vars.ACR_NAME }}.azurecr.io/vigiscam-backend:${{ github.sha }}
