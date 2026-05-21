@@ -268,7 +268,10 @@ resource backendApp 'Microsoft.App/containerApps@2024-03-01' = {
             memory: environmentName == 'prod' ? '2Gi' : '1Gi'
           }
           env: [
-            { name: 'NODE_ENV', value: environmentName == 'prod' ? 'production' : environmentName }
+            // Deployed containers always run in production mode (real JSON logs,
+            // no dev-only dependencies). The dev/staging/prod tier is conveyed
+            // by resource naming, not by NODE_ENV.
+            { name: 'NODE_ENV', value: 'production' }
             { name: 'PORT', value: string(containerTargetPort) }
             { name: 'API_PREFIX', value: 'api' }
             { name: 'DATABASE_URL', secretRef: 'database-url' }
