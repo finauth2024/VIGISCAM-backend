@@ -27,8 +27,9 @@ param environmentName string = 'dev'
 @maxLength(10)
 param namePrefix string = 'vigiscam'
 
-@description('PostgreSQL administrator login.')
-param postgresAdminLogin string = 'vigiscamadmin'
+@description('PostgreSQL administrator login. Must NOT share 3+ consecutive')
+@description('characters with the admin password (an Azure PostgreSQL rule).')
+param postgresAdminLogin string = 'dbmaster'
 
 @description('PostgreSQL administrator password.')
 @secure()
@@ -81,8 +82,10 @@ resource keyVault 'Microsoft.KeyVault/vaults@2023-07-01' = {
     tenantId: subscription().tenantId
     enableRbacAuthorization: true
     enableSoftDelete: true
-    softDeleteRetentionInDays: 90
-    enablePurgeProtection: true
+    softDeleteRetentionInDays: environmentName == 'prod' ? 90 : 7
+    // Purge protection is irreversible — only enforce it in production so dev
+    // vaults can be freely deleted and recreated.
+    enablePurgeProtection: environmentName == 'prod' ? true : null
     publicNetworkAccess: 'Enabled'
   }
 }
@@ -207,21 +210,12 @@ resource acrPull 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
   }
 }
 
-// ── Secrets in Key Vault ────────────────────────────────────────────────────
+// ── Connection strings ──────────────────────────────────────────────────────
+// Phase 0 stores these as Container App native secrets (set at deploy time,
+// never in source control). Phase 1 hardening moves them into the Key Vault
+// that is already provisioned above (vault + access role are ready).
 var databaseUrl = 'postgresql://${postgresAdminLogin}:${postgresAdminPassword}@${postgres.properties.fullyQualifiedDomainName}:5432/vigiscam?sslmode=require'
 var redisUrl = 'rediss://:${redis.listKeys().primaryKey}@${redis.properties.hostName}:6380'
-
-resource secretDatabaseUrl 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
-  parent: keyVault
-  name: 'database-url'
-  properties: { value: databaseUrl }
-}
-
-resource secretRedisUrl 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
-  parent: keyVault
-  name: 'redis-url'
-  properties: { value: redisUrl }
-}
 
 // ── Container Apps environment + the backend app ────────────────────────────
 resource containerEnv 'Microsoft.App/managedEnvironments@2024-03-01' = {
@@ -262,16 +256,8 @@ resource backendApp 'Microsoft.App/containerApps@2024-03-01' = {
         }
       ]
       secrets: [
-        {
-          name: 'database-url'
-          keyVaultUrl: secretDatabaseUrl.properties.secretUri
-          identity: uami.id
-        }
-        {
-          name: 'redis-url'
-          keyVaultUrl: secretRedisUrl.properties.secretUri
-          identity: uami.id
-        }
+        { name: 'database-url', value: databaseUrl }
+        { name: 'redis-url', value: redisUrl }
       ]
     }
     template: {
@@ -300,7 +286,6 @@ resource backendApp 'Microsoft.App/containerApps@2024-03-01' = {
     }
   }
   dependsOn: [
-    kvSecretsUser
     acrPull
   ]
 }

@@ -4,6 +4,6 @@
   "parameters": {
     "environmentName": { "value": "dev" },
     "namePrefix": { "value": "vigiscam" },
-    "postgresAdminLogin": { "value": "vigiscamadmin" }
+    "postgresAdminLogin": { "value": "dbmaster" }
   }
 }
