@@ -27,16 +27,14 @@ param environmentName string = 'dev'
 @maxLength(10)
 param namePrefix string = 'vigiscam'
 
-@description('PostgreSQL administrator login. Must NOT share 3+ consecutive')
-@description('characters with the admin password (an Azure PostgreSQL rule).')
+@description('PostgreSQL administrator login. Must not share 3+ consecutive characters with the admin password (an Azure PostgreSQL rule).')
 param postgresAdminLogin string = 'dbmaster'
 
 @description('PostgreSQL administrator password.')
 @secure()
 param postgresAdminPassword string
 
-@description('Container image for the backend. Defaults to a placeholder so the')
-@description('environment stands up before the first real image is pushed by CI.')
+@description('Container image for the backend. Defaults to a placeholder so the environment stands up before the first real image is pushed by CI.')
 param containerImage string = 'mcr.microsoft.com/azuredocs/containerapps-helloworld:latest'
 
 @description('Port the backend container listens on.')
