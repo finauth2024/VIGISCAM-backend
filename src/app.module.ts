@@ -18,6 +18,7 @@ import { FamiliesModule } from './modules/families/families.module';
 import { FreezeGuardModule } from './modules/freezeguard/freezeguard.module';
 import { FreezeLockModule } from './modules/freezelock/freezelock.module';
 import { HealthModule } from './modules/health/health.module';
+import { InternalAdminModule } from './modules/internal-admin/internal-admin.module';
 import { RegistryModule } from './modules/registry/registry.module';
 import { ReviewQueueModule } from './modules/review-queue/review-queue.module';
 import { RiskModule } from './modules/risk-fusion/risk.module';
@@ -90,6 +91,7 @@ import { TakedownModule } from './modules/takedown/takedown.module';
     RegistryModule,
     ReviewQueueModule,
     TakedownModule,
+    InternalAdminModule,
   ],
   providers: [
     // Order matters: rate-limit first, then authenticate, then authorize.
