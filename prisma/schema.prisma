@@ -77,9 +77,12 @@ model Tenant {
   createdAt DateTime     @default(now())
   updatedAt DateTime     @updatedAt
 
-  memberships Membership[]
-  devices     Device[]
-  sessions    Session[]
+  memberships      Membership[]
+  devices          Device[]
+  sessions         Session[]
+  riskEvents       RiskEvent[]
+  freezeLockEvents FreezeLockEvent[]
+  alerts           Alert[]
 
   @@index([type])
   @@map("tenants")
@@ -96,10 +99,13 @@ model User {
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
 
-  memberships   Membership[]
-  refreshTokens RefreshToken[]
-  devices       Device[]
-  sessions      Session[]
+  memberships      Membership[]
+  refreshTokens    RefreshToken[]
+  devices          Device[]
+  sessions         Session[]
+  riskEvents       RiskEvent[]
+  freezeLockEvents FreezeLockEvent[]
+  alerts           Alert[]
 
   @@map("users")
 }
@@ -235,6 +241,125 @@ model SessionEvent {
 
   @@index([sessionId])
   @@map("session_events")
+}
+
+// ────────────── Risk, intervention & alerts (Phase 1D) ──────────────
+
+enum RiskLevel {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum RiskEventStatus {
+  OPEN
+  INTERVENING
+  RESOLVED
+  DISMISSED
+}
+
+enum RiskModuleSource {
+  RISK_FUSION
+  FREEZEGUARD
+  A1SCAMSHIELD
+  GUARDIAN_PAUSE
+  SCAMHOLD
+  GIFTCARDGUARD
+  WALLETGUARD
+  CLAIMVERIFY
+  MANUAL
+}
+
+/// A scored unit of suspicious activity. Every scam signal becomes a RiskEvent;
+/// a serious one can trigger intervention, alerts and evidence (PDF §23, §27).
+model RiskEvent {
+  id                String           @id @default(uuid()) @db.Uuid
+  tenantId          String           @db.Uuid
+  userId            String           @db.Uuid
+  sessionId         String?          @db.Uuid
+  moduleSource      RiskModuleSource
+  eventType         String
+  riskScore         Int
+  riskLevel         RiskLevel
+  status            RiskEventStatus  @default(OPEN)
+  triggerReason     String
+  recommendedAction String
+  detectedSignals   String[]
+  metadata          Json?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tenant           Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  freezeLockEvents FreezeLockEvent[]
+  alerts           Alert[]
+
+  @@index([userId])
+  @@index([tenantId])
+  @@index([riskLevel])
+  @@index([status])
+  @@map("risk_events")
+}
+
+enum FreezeLockStatus {
+  EXECUTED
+  CLEARED
+  FAILED
+}
+
+/// An emergency-intervention record (PDF §21). Created when a critical risk
+/// event — or an explicit emergency action — fires FreezeLock.
+model FreezeLockEvent {
+  id          String           @id @default(uuid()) @db.Uuid
+  tenantId    String           @db.Uuid
+  userId      String           @db.Uuid
+  riskEventId String?          @db.Uuid
+  sessionId   String?          @db.Uuid
+  trigger     String
+  actions     String[]
+  status      FreezeLockStatus @default(EXECUTED)
+  executedAt  DateTime         @default(now())
+  createdAt   DateTime         @default(now())
+
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tenant    Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  riskEvent RiskEvent? @relation(fields: [riskEventId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([tenantId])
+  @@map("freezelock_events")
+}
+
+enum AlertSeverity {
+  INFO
+  WARNING
+  HIGH
+  CRITICAL
+}
+
+/// A user-facing alert. Phase 1D persists alerts (in-app); email/SMS/push/
+/// WebSocket delivery channels are wired in later phases.
+model Alert {
+  id          String        @id @default(uuid()) @db.Uuid
+  tenantId    String        @db.Uuid
+  userId      String        @db.Uuid
+  riskEventId String?       @db.Uuid
+  type        String
+  severity    AlertSeverity
+  title       String
+  message     String
+  readAt      DateTime?
+  createdAt   DateTime      @default(now())
+
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tenant    Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  riskEvent RiskEvent? @relation(fields: [riskEventId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([tenantId])
+  @@index([readAt])
+  @@map("alerts")
 }
 
 // ───────────────────── Evidence Vault (Phase 1C) ─────────────────────
