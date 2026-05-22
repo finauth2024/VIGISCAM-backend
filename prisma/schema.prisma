@@ -83,6 +83,8 @@ model Tenant {
   riskEvents       RiskEvent[]
   freezeLockEvents FreezeLockEvent[]
   alerts           Alert[]
+  trustedContacts  TrustedContact[]
+  guardianLinks    GuardianLink[]
 
   @@index([type])
   @@map("tenants")
@@ -106,6 +108,9 @@ model User {
   riskEvents       RiskEvent[]
   freezeLockEvents FreezeLockEvent[]
   alerts           Alert[]
+  trustedContacts  TrustedContact[]
+  guardianLinks    GuardianLink[]   @relation("GuardianLinks")
+  protectedByLinks GuardianLink[]   @relation("ProtectedByLinks")
 
   @@map("users")
 }
@@ -360,6 +365,70 @@ model Alert {
   @@index([tenantId])
   @@index([readAt])
   @@map("alerts")
+}
+
+// ────────────── Family, guardian & consent (Phase 1F) ──────────────
+
+enum TrustedContactStatus {
+  ACTIVE
+  INACTIVE
+}
+
+/// A person a user trusts to be alerted or to review risky actions. Not
+/// necessarily a VIGISCAM account — just contact details owned by the user.
+model TrustedContact {
+  id                        String               @id @default(uuid()) @db.Uuid
+  tenantId                  String               @db.Uuid
+  userId                    String               @db.Uuid
+  fullName                  String
+  relationship              String?
+  email                     String?
+  phone                     String?
+  status                    TrustedContactStatus @default(ACTIVE)
+  canReceiveAlerts          Boolean              @default(true)
+  canApproveHighRiskActions Boolean              @default(false)
+  createdAt                 DateTime             @default(now())
+  updatedAt                 DateTime             @updatedAt
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([tenantId])
+  @@map("trusted_contacts")
+}
+
+enum GuardianLinkStatus {
+  PENDING
+  ACTIVE
+  DECLINED
+  REVOKED
+}
+
+/// A guardian↔protected-user monitoring relationship. Monitoring is strictly
+/// consent-based: it is ACTIVE only after the protected user grants consent,
+/// and the protected user can revoke it at any time (PDF §9.2 — non-negotiable).
+model GuardianLink {
+  id               String             @id @default(uuid()) @db.Uuid
+  tenantId         String             @db.Uuid
+  guardianUserId   String             @db.Uuid
+  protectedUserId  String             @db.Uuid
+  status           GuardianLinkStatus @default(PENDING)
+  scope            String[]
+  requestedAt      DateTime           @default(now())
+  consentGrantedAt DateTime?
+  consentRevokedAt DateTime?
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+
+  guardian      User   @relation("GuardianLinks", fields: [guardianUserId], references: [id], onDelete: Cascade)
+  protectedUser User   @relation("ProtectedByLinks", fields: [protectedUserId], references: [id], onDelete: Cascade)
+  tenant        Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([guardianUserId, protectedUserId])
+  @@index([guardianUserId])
+  @@index([protectedUserId])
+  @@map("guardian_links")
 }
 
 // ───────────────────── Evidence Vault (Phase 1C) ─────────────────────

@@ -14,6 +14,7 @@ import { AlertsModule } from './modules/alerts/alerts.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { DevicesModule } from './modules/devices/devices.module';
 import { EvidenceModule } from './modules/evidence-vault/evidence.module';
+import { FamiliesModule } from './modules/families/families.module';
 import { FreezeGuardModule } from './modules/freezeguard/freezeguard.module';
 import { FreezeLockModule } from './modules/freezelock/freezelock.module';
 import { HealthModule } from './modules/health/health.module';
@@ -78,6 +79,7 @@ import { SessionsModule } from './modules/sessions/sessions.module';
     RiskModule,
     FreezeGuardModule,
     A1ScamShieldModule,
+    FamiliesModule,
   ],
   providers: [
     // Order matters: rate-limit first, then authenticate, then authorize.
