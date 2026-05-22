@@ -16,6 +16,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
       # Password-free login via OIDC federated credential.
       # Requires repo secrets: AZURE_CLIENT_ID, AZURE_TENANT_ID, AZURE_SUBSCRIPTION_ID
       - name: Azure login (OIDC)
@@ -25,8 +30,38 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      # Build the container image inside Azure Container Registry.
-      # Requires repo variable: ACR_NAME
+      - name: Install dependencies
+        run: npm ci
+
+      # ── Database migrations ──────────────────────────────────────────────
+      # PostgreSQL is firewalled; briefly allow this runner's IP, apply the
+      # migrations, then close the rule again (always, even on failure).
+      # Requires: repo variable POSTGRES_SERVER, repo secret DATABASE_URL.
+      - name: Open temporary DB firewall for the runner
+        run: |
+          RUNNER_IP=$(curl -s https://api.ipify.org)
+          echo "Runner IP: $RUNNER_IP"
+          az postgres flexible-server firewall-rule create \
+            --resource-group ${{ vars.RESOURCE_GROUP }} \
+            --name ${{ vars.POSTGRES_SERVER }} \
+            --rule-name gh-deploy-temp \
+            --start-ip-address "$RUNNER_IP" --end-ip-address "$RUNNER_IP"
+
+      - name: Apply database migrations
+        run: npx prisma migrate deploy
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+      - name: Close temporary DB firewall
+        if: always()
+        run: |
+          az postgres flexible-server firewall-rule delete \
+            --resource-group ${{ vars.RESOURCE_GROUP }} \
+            --name ${{ vars.POSTGRES_SERVER }} \
+            --rule-name gh-deploy-temp --yes || true
+
+      # ── Application rollout ──────────────────────────────────────────────
+      # Build the image inside Azure Container Registry. Requires var ACR_NAME.
       - name: Build & push image
         run: |
           az acr build \
@@ -35,8 +70,7 @@ jobs:
             --image vigiscam-backend:latest \
             .
 
-      # Roll the new image out to the Container App.
-      # Requires repo variables: CONTAINER_APP_NAME, RESOURCE_GROUP
+      # Roll the new image out. Requires vars CONTAINER_APP_NAME, RESOURCE_GROUP.
       - name: Deploy image to Container App
         run: |
           az containerapp update \
