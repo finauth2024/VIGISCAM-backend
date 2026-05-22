@@ -5,8 +5,11 @@ import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { LoggerModule } from 'nestjs-pino';
 import configuration from './common/config/configuration';
 import { validateEnv } from './common/config/env.validation';
+import { JwtAuthGuard } from './common/auth/jwt-auth.guard';
+import { RolesGuard } from './common/auth/roles.guard';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { PrismaModule } from './common/prisma/prisma.module';
+import { AuthModule } from './modules/auth/auth.module';
 import { HealthModule } from './modules/health/health.module';
 
 /**
@@ -58,9 +61,13 @@ import { HealthModule } from './modules/health/health.module';
     }),
     PrismaModule,
     HealthModule,
+    AuthModule,
   ],
   providers: [
+    // Order matters: rate-limit first, then authenticate, then authorize.
     { provide: APP_GUARD, useClass: ThrottlerGuard },
+    { provide: APP_GUARD, useClass: JwtAuthGuard },
+    { provide: APP_GUARD, useClass: RolesGuard },
     { provide: APP_FILTER, useClass: AllExceptionsFilter },
   ],
 })

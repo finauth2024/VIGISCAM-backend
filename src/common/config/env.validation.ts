@@ -1,5 +1,14 @@
 import { plainToInstance } from 'class-transformer';
-import { IsEnum, IsInt, IsOptional, IsString, Max, Min, validateSync } from 'class-validator';
+import {
+  IsEnum,
+  IsInt,
+  IsOptional,
+  IsString,
+  Max,
+  Min,
+  MinLength,
+  validateSync,
+} from 'class-validator';
 
 export enum Environment {
   Development = 'development',
@@ -34,6 +43,20 @@ class EnvironmentVariables {
   @IsOptional()
   @IsString()
   REDIS_URL?: string;
+
+  // Required — auth (JWT signing) cannot operate without it.
+  @IsString()
+  @MinLength(16)
+  JWT_SECRET!: string;
+
+  @IsOptional()
+  @IsString()
+  JWT_ACCESS_TTL: string = '15m';
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  JWT_REFRESH_TTL_DAYS: number = 7;
 
   @IsOptional()
   @IsString()

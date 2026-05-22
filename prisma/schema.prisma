@@ -1,6 +1,5 @@
 // VIGISCAM Backend — Prisma schema
-// Phase 0: datasource/generator wiring + the foundational AuditLog table.
-// Phase 1 adds auth, tenants, users, devices, sessions, evidence, etc.
+// Phase 0: AuditLog. Phase 1A: identity, tenancy, roles, auth.
 
 generator client {
   provider = "prisma-client-js"
@@ -11,8 +10,136 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-/// Foundational, cross-cutting audit table. Every sensitive action across the
-/// platform writes one row here (see docs/05-GUARDRAILS-HARDENING.md §9).
+// ──────────────────────────── Enums ────────────────────────────
+
+/// Tenant categories (PDF §8 "Tenant Types").
+enum TenantType {
+  PUBLIC
+  PERSONAL
+  FAMILY
+  BANK
+  PLATFORM
+  INVESTIGATOR
+  AGENCY
+  ENTERPRISE
+  INTERNAL
+}
+
+enum TenantStatus {
+  ACTIVE
+  SUSPENDED
+  CLOSED
+}
+
+enum UserStatus {
+  ACTIVE
+  PENDING
+  SUSPENDED
+  DISABLED
+}
+
+/// A user's role within a specific tenant (PDF §7 "Role-Based User Architecture").
+enum MembershipRole {
+  // Consumer
+  INDIVIDUAL
+  FAMILY_GUARDIAN
+  PROTECTED_USER
+  // Institutional
+  BANK_ADMIN
+  BANK_ANALYST
+  PLATFORM_ADMIN
+  PLATFORM_MODERATOR
+  INVESTIGATOR
+  AGENCY_ANALYST
+  ENTERPRISE_ADMIN
+  // Internal VIGISCAM
+  SUPER_ADMIN
+  REVIEWER
+  COMPLIANCE_OFFICER
+  SUPPORT
+}
+
+enum MembershipStatus {
+  ACTIVE
+  INVITED
+  SUSPENDED
+  REMOVED
+}
+
+// ──────────────────────────── Models ───────────────────────────
+
+/// An isolation boundary. Every tenant-scoped record carries a tenantId.
+model Tenant {
+  id        String       @id @default(uuid()) @db.Uuid
+  name      String
+  type      TenantType
+  status    TenantStatus @default(ACTIVE)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  memberships Membership[]
+
+  @@index([type])
+  @@map("tenants")
+}
+
+/// A global user account. Access to a tenant is granted via a Membership.
+model User {
+  id           String     @id @default(uuid()) @db.Uuid
+  email        String     @unique
+  passwordHash String
+  fullName     String
+  status       UserStatus @default(ACTIVE)
+  lastLoginAt  DateTime?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  memberships   Membership[]
+  refreshTokens RefreshToken[]
+
+  @@map("users")
+}
+
+/// Links a user to a tenant with a role — the unit of RBAC.
+model Membership {
+  id        String           @id @default(uuid()) @db.Uuid
+  userId    String           @db.Uuid
+  tenantId  String           @db.Uuid
+  role      MembershipRole
+  status    MembershipStatus @default(ACTIVE)
+  isPrimary Boolean          @default(false)
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, tenantId])
+  @@index([userId])
+  @@index([tenantId])
+  @@map("memberships")
+}
+
+/// A hashed, rotating refresh token. The raw token is never stored.
+model RefreshToken {
+  id           String    @id @default(uuid()) @db.Uuid
+  userId       String    @db.Uuid
+  tokenHash    String    @unique
+  expiresAt    DateTime
+  revokedAt    DateTime?
+  replacedById String?   @db.Uuid
+  userAgent    String?
+  ipAddress    String?
+  createdAt    DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}
+
+/// Foundational, cross-cutting audit table. Every sensitive action writes here
+/// (see docs/05-GUARDRAILS-HARDENING.md §9).
 model AuditLog {
   id         String   @id @default(uuid()) @db.Uuid
   actorId    String?  @db.Uuid

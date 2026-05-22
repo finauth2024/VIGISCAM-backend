@@ -40,6 +40,10 @@ param containerImage string = 'mcr.microsoft.com/azuredocs/containerapps-hellowo
 @description('Port the backend container listens on.')
 param containerTargetPort int = 3000
 
+@description('Secret for signing JWT access tokens. A new value is generated each deployment unless one is supplied explicitly.')
+@secure()
+param jwtSecret string = newGuid()
+
 // ── Naming ───────────────────────────────────────────────────────────────────
 var suffix = uniqueString(resourceGroup().id, environmentName)
 var nameBase = '${namePrefix}-${environmentName}'
@@ -256,6 +260,7 @@ resource backendApp 'Microsoft.App/containerApps@2024-03-01' = {
       secrets: [
         { name: 'database-url', value: databaseUrl }
         { name: 'redis-url', value: redisUrl }
+        { name: 'jwt-secret', value: jwtSecret }
       ]
     }
     template: {
@@ -276,6 +281,7 @@ resource backendApp 'Microsoft.App/containerApps@2024-03-01' = {
             { name: 'API_PREFIX', value: 'api' }
             { name: 'DATABASE_URL', secretRef: 'database-url' }
             { name: 'REDIS_URL', secretRef: 'redis-url' }
+            { name: 'JWT_SECRET', secretRef: 'jwt-secret' }
             { name: 'APPLICATIONINSIGHTS_CONNECTION_STRING', value: appInsights.properties.ConnectionString }
           ]
         }

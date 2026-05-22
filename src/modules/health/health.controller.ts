@@ -1,6 +1,7 @@
 import { Controller, Get, ServiceUnavailableException } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { SkipThrottle } from '@nestjs/throttler';
+import { Public } from '../../common/auth/public.decorator';
 import { PrismaService } from '../../common/prisma/prisma.service';
 
 type CheckStatus = 'up' | 'down';
@@ -17,6 +18,7 @@ interface DependencyCheck {
  * Both are exempt from rate limiting.
  */
 @ApiTags('Health')
+@Public()
 @SkipThrottle()
 @Controller({ path: 'health', version: '1' })
 export class HealthController {

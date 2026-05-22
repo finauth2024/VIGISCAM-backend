@@ -8,6 +8,7 @@ export interface AppConfiguration {
   apiPrefix: string;
   database: { url: string };
   redis: { url?: string };
+  jwt: { secret: string; accessTtl: string; refreshTtlDays: number };
   cors: { origins: string[] };
   swagger: { enabled: boolean };
   logLevel: string;
@@ -23,6 +24,11 @@ export default (): AppConfiguration => ({
   },
   redis: {
     url: process.env.REDIS_URL,
+  },
+  jwt: {
+    secret: process.env.JWT_SECRET ?? '',
+    accessTtl: process.env.JWT_ACCESS_TTL ?? '15m',
+    refreshTtlDays: parseInt(process.env.JWT_REFRESH_TTL_DAYS ?? '7', 10),
   },
   cors: {
     origins: (process.env.CORS_ORIGINS ?? '')
