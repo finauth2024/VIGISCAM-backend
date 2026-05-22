@@ -2,6 +2,8 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { Session, SessionEvent } from '@prisma/client';
 import { AuthenticatedUser } from '../../common/auth/auth.types';
 import { PrismaService } from '../../common/prisma/prisma.service';
+import { EvidenceService } from '../evidence-vault/evidence.service';
+import { EvidenceEntity, EvidenceEventType } from '../evidence-vault/evidence.types';
 import { SessionEventDto } from './dto/session-event.dto';
 import { StartSessionDto } from './dto/start-session.dto';
 
@@ -12,7 +14,10 @@ import { StartSessionDto } from './dto/start-session.dto';
  */
 @Injectable()
 export class SessionsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly evidence: EvidenceService,
+  ) {}
 
   async start(user: AuthenticatedUser, dto: StartSessionDto): Promise<Session> {
     if (dto.deviceId) {
@@ -21,7 +26,7 @@ export class SessionsService {
         throw new NotFoundException('Device not found');
       }
     }
-    return this.prisma.session.create({
+    const session = await this.prisma.session.create({
       data: {
         userId: user.userId,
         tenantId: user.tenantId,
@@ -29,6 +34,17 @@ export class SessionsService {
         type: dto.type,
       },
     });
+    await this.evidence.append({
+      tenantId: user.tenantId,
+      actorId: user.userId,
+      actorType: 'USER',
+      entityType: EvidenceEntity.SESSION,
+      entityId: session.id,
+      eventType: EvidenceEventType.SESSION_STARTED,
+      eventDescription: `${session.type} session started`,
+      deviceId: dto.deviceId ?? null,
+    });
+    return session;
   }
 
   listForUser(user: AuthenticatedUser): Promise<Session[]> {
@@ -63,10 +79,20 @@ export class SessionsService {
     if (session.status === 'ENDED') {
       return session;
     }
-    return this.prisma.session.update({
+    const ended = await this.prisma.session.update({
       where: { id },
       data: { status: 'ENDED', endedAt: new Date() },
     });
+    await this.evidence.append({
+      tenantId: user.tenantId,
+      actorId: user.userId,
+      actorType: 'USER',
+      entityType: EvidenceEntity.SESSION,
+      entityId: ended.id,
+      eventType: EvidenceEventType.SESSION_ENDED,
+      eventDescription: `${ended.type} session ended`,
+    });
+    return ended;
   }
 
   private async requireOwnedSession(user: AuthenticatedUser, id: string): Promise<Session> {

@@ -237,6 +237,38 @@ model SessionEvent {
   @@map("session_events")
 }
 
+// ───────────────────── Evidence Vault (Phase 1C) ─────────────────────
+
+/// Tamper-evident, hash-chained evidence log (PDF §28.11 / §35). Append-only:
+/// each event chains to the previous one in its tenant chain via SHA-256, so
+/// any later alteration is detectable. Deliberately has NO foreign keys — the
+/// evidence record must outlive the entities it describes (retention / legal
+/// hold). System-level events use a null tenant chain.
+model EvidenceEvent {
+  id               String   @id @default(uuid()) @db.Uuid
+  tenantId         String?  @db.Uuid
+  sequence         Int
+  actorId          String?  @db.Uuid
+  actorType        String?
+  entityType       String
+  entityId         String
+  eventType        String
+  eventDescription String
+  metadata         Json?
+  ipAddress        String?
+  deviceId         String?
+  previousHash     String?
+  eventHash        String
+  occurredAt       DateTime
+  createdAt        DateTime @default(now())
+
+  @@unique([tenantId, sequence])
+  @@index([tenantId])
+  @@index([entityType, entityId])
+  @@index([eventType])
+  @@map("evidence_events")
+}
+
 /// Foundational, cross-cutting audit table. Every sensitive action writes here
 /// (see docs/05-GUARDRAILS-HARDENING.md §9).
 model AuditLog {
