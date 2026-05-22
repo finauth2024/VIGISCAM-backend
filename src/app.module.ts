@@ -12,6 +12,7 @@ import { PrismaModule } from './common/prisma/prisma.module';
 import { A1ScamShieldModule } from './modules/a1scamshield/a1scamshield.module';
 import { AlertsModule } from './modules/alerts/alerts.module';
 import { AuthModule } from './modules/auth/auth.module';
+import { ClusteringModule } from './modules/clustering/clustering.module';
 import { DevicesModule } from './modules/devices/devices.module';
 import { EvidenceModule } from './modules/evidence-vault/evidence.module';
 import { FamiliesModule } from './modules/families/families.module';
@@ -92,6 +93,7 @@ import { TakedownModule } from './modules/takedown/takedown.module';
     ReviewQueueModule,
     TakedownModule,
     InternalAdminModule,
+    ClusteringModule,
   ],
   providers: [
     // Order matters: rate-limit first, then authenticate, then authorize.

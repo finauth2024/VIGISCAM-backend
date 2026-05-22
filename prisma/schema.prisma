@@ -603,11 +603,13 @@ model ScamSignal {
   updatedAt              DateTime         @updatedAt
 
   evidence ScamSignalEvidence[]
+  cluster  ScamCluster?         @relation(fields: [clusterId], references: [id], onDelete: SetNull)
 
   @@index([normalizedIndicator])
   @@index([indicatorType])
   @@index([status])
   @@index([tenantId])
+  @@index([clusterId])
   @@map("scam_signals")
 }
 
@@ -796,4 +798,50 @@ model TakedownRequest {
   @@index([registryEntryId])
   @@index([status])
   @@map("takedown_requests")
+}
+
+// ────────── Clustering — signal clusters (Phase 4A) ──────────
+
+/// How a cluster's member signals are related (PDF §32).
+enum ClusterMatchType {
+  SHARED_INDICATOR
+  SHARED_DOMAIN_ROOT
+  SHARED_PHONE
+  SHARED_EMAIL
+  SHARED_WALLET
+  SHARED_PHRASE
+  SHARED_CATEGORY
+  MANUAL
+}
+
+/// Cluster lifecycle.
+enum ClusterStatus {
+  ACTIVE
+  MONITORING
+  ARCHIVED
+}
+
+/// A group of scam signals that share a common indicator or pattern (PDF §32).
+/// MVP auto-clustering links signals that share a domain root or email domain;
+/// other relationships can be grouped manually by a reviewer. A cluster is the
+/// unit that detection-rule suggestions are derived from (Phase 4C).
+model ScamCluster {
+  id              String           @id @default(uuid()) @db.Uuid
+  clusterKey      String           @unique
+  matchType       ClusterMatchType
+  label           String
+  category        String?
+  status          ClusterStatus    @default(ACTIVE)
+  signalCount     Int              @default(0)
+  confidenceScore Int              @default(0)
+  firstSeen       DateTime         @default(now())
+  lastSeen        DateTime         @default(now())
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  signals ScamSignal[]
+
+  @@index([matchType])
+  @@index([status])
+  @@map("scam_clusters")
 }

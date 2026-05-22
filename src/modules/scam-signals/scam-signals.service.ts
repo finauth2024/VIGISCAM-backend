@@ -1,7 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ScamSignal, ScamSignalStatus } from '@prisma/client';
 import { RequestContext } from '../../common/auth/auth.types';
 import { PrismaService } from '../../common/prisma/prisma.service';
+import { ClusterService } from '../clustering/cluster.service';
 import { EvidenceService } from '../evidence-vault/evidence.service';
 import { SubmitScamReportDto } from './dto/submit-scam-report.dto';
 import { normalizeIndicator } from './normalization';
@@ -29,9 +30,12 @@ interface SignalScores {
  */
 @Injectable()
 export class ScamSignalsService {
+  private readonly logger = new Logger(ScamSignalsService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly evidence: EvidenceService,
+    private readonly cluster: ClusterService,
   ) {}
 
   async submitReport(
@@ -118,6 +122,14 @@ export class ScamSignalsService {
       },
       ipAddress: ctx.ip ?? null,
     });
+
+    // Connect the signal into a cluster of related scam infrastructure
+    // (PDF §32). Best-effort — a clustering failure must never fail intake.
+    try {
+      await this.cluster.clusterSignal(signal, ctx);
+    } catch (err) {
+      this.logger.warn(`Clustering failed for signal ${signal.id}: ${String(err)}`);
+    }
 
     // High-risk signals are queued for internal review (PDF §16.1).
     if (signal.status === 'SUSPICIOUS_SIGNAL' || signal.status === 'PATTERN_MATCH') {
