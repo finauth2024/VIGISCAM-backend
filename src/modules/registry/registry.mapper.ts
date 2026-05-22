@@ -1,17 +1,20 @@
-import { RegistryEntry, RiskLevel } from '@prisma/client';
+import { RegistryEntry, RegistryPublicStatus, RiskLevel } from '@prisma/client';
 import { levelForScore } from '../risk-fusion/risk.scoring';
 
 /**
  * The public-safe shape of a registry entry. This is an explicit allowlist —
- * internal fields (normalizedIndicator, raw confidenceScore, status, source
- * signal id, approver id, timestamps) are deliberately NOT included, so private
- * intelligence cannot leak through the public registry (PDF §26, docs/04).
+ * internal fields (normalizedIndicator, raw confidenceScore, internal lifecycle
+ * status, source signal id, approver id, timestamps) are deliberately NOT
+ * included, so private intelligence cannot leak through the public registry
+ * (PDF §26, §38, docs/04). The only status exposed is `publicStatus` — the
+ * approved, status-based public vocabulary.
  */
 export interface PublicRegistryEntry {
   id: string;
   indicatorType: string;
   indicator: string;
   category: string;
+  publicStatus: RegistryPublicStatus | null;
   riskLevel: RiskLevel;
   summary: string;
   recommendedAction: string | null;
@@ -28,6 +31,7 @@ export function toPublicRegistryEntry(entry: RegistryEntry): PublicRegistryEntry
     indicatorType: entry.indicatorType,
     indicator: entry.indicatorValue,
     category: entry.category,
+    publicStatus: entry.publicStatus,
     riskLevel: levelForScore(entry.confidenceScore),
     summary: entry.publicSafeSummary,
     recommendedAction: entry.recommendedAction,

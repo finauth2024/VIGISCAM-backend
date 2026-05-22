@@ -521,6 +521,7 @@ enum ScamSignalStatus {
 }
 
 /// Registry-entry lifecycle (PDF §15). Only PUBLISHED entries are public.
+/// These are INTERNAL statuses — they are never shown on a public surface.
 enum RegistryEntryStatus {
   CANDIDATE
   UNDER_REVIEW
@@ -528,6 +529,16 @@ enum RegistryEntryStatus {
   PUBLISHED
   REJECTED
   ARCHIVED
+}
+
+/// The ONLY classifications allowed on a public-facing registry entry
+/// (PDF §38, docs/04 §3). Status-based, non-accusatory language — never a
+/// direct accusation of a named person or business.
+enum RegistryPublicStatus {
+  VERIFIED_MALICIOUS
+  HIGH_RISK_VERIFIED
+  OFFICIALLY_REPORTED
+  TAKEDOWN_CONFIRMED
 }
 
 enum ReviewQueueStatus {
@@ -626,6 +637,7 @@ model RegistryEntry {
   normalizedIndicator String
   category            String
   status              RegistryEntryStatus @default(CANDIDATE)
+  publicStatus        RegistryPublicStatus?
   confidenceScore     Int                 @default(0)
   publicSafeSummary   String
   recommendedAction   String?

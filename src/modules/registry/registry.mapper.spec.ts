@@ -8,6 +8,7 @@ const storedEntry: RegistryEntry = {
   normalizedIndicator: 'scam-login.example.com',
   category: 'CRYPTO_SCAM',
   status: 'PUBLISHED',
+  publicStatus: 'VERIFIED_MALICIOUS',
   confidenceScore: 88,
   publicSafeSummary: 'Verified scam domain used in crypto investment fraud.',
   recommendedAction: 'DO_NOT_VISIT_OR_ENTER_DETAILS',
@@ -28,6 +29,7 @@ describe('public registry mapper', () => {
     expect(pub.indicator).toBe('scam-login.example.com');
     expect(pub.summary).toBe('Verified scam domain used in crypto investment fraud.');
     expect(pub.riskLevel).toBe('CRITICAL'); // confidence 88 -> CRITICAL
+    expect(pub.publicStatus).toBe('VERIFIED_MALICIOUS');
     expect(pub.evidenceCount).toBe(5);
   });
 
@@ -38,6 +40,6 @@ describe('public registry mapper', () => {
     expect(pub.approvedAt).toBeUndefined();
     expect(pub.normalizedIndicator).toBeUndefined();
     expect(pub.confidenceScore).toBeUndefined();
-    expect(pub.status).toBeUndefined();
+    expect(pub.status).toBeUndefined(); // internal lifecycle status never leaks
   });
 });

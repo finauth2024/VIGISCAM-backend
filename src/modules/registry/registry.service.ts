@@ -11,6 +11,7 @@ import { EvidenceService } from '../evidence-vault/evidence.service';
 import { normalizeIndicator } from '../scam-signals/normalization';
 import { CreateRegistryCandidateDto } from './dto/create-registry-candidate.dto';
 import { PublicRegistryEntry, toPublicRegistryEntry } from './registry.mapper';
+import { assertPublicSafeLanguage } from './safe-language';
 
 export interface RegistrySearchQuery {
   q?: string;
@@ -96,6 +97,14 @@ export class RegistryService {
         'Only a signal promoted to verified intelligence can become a registry candidate',
       );
     }
+
+    // Safe-language gate (PDF §38 #7/#8): reviewer-authored public text must
+    // not contain direct identity accusations before it can be stored.
+    assertPublicSafeLanguage(dto.publicSafeSummary, 'publicSafeSummary');
+    if (dto.recommendedAction) {
+      assertPublicSafeLanguage(dto.recommendedAction, 'recommendedAction');
+    }
+
     const duplicate = await this.prisma.registryEntry.findFirst({
       where: { sourceSignalId: signal.id },
     });
@@ -110,6 +119,7 @@ export class RegistryService {
         normalizedIndicator: signal.normalizedIndicator,
         category: dto.category ?? signal.category ?? 'OTHER',
         status: 'CANDIDATE',
+        publicStatus: dto.publicStatus,
         confidenceScore: signal.confidenceScore,
         publicSafeSummary: dto.publicSafeSummary,
         recommendedAction: dto.recommendedAction,
