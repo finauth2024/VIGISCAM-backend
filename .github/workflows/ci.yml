@@ -27,6 +27,8 @@ jobs:
       NODE_ENV: test
       DATABASE_URL: postgresql://vigiscam:vigiscam@localhost:5432/vigiscam_test?schema=public
       CORS_ORIGINS: http://localhost:3001
+      # Required by env validation since Phase 1A — a throwaway value for CI.
+      JWT_SECRET: ci-test-jwt-secret-not-a-real-secret
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
