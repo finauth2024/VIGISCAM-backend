@@ -9,10 +9,12 @@ import { JwtAuthGuard } from './common/auth/jwt-auth.guard';
 import { RolesGuard } from './common/auth/roles.guard';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { PrismaModule } from './common/prisma/prisma.module';
+import { A1ScamShieldModule } from './modules/a1scamshield/a1scamshield.module';
 import { AlertsModule } from './modules/alerts/alerts.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { DevicesModule } from './modules/devices/devices.module';
 import { EvidenceModule } from './modules/evidence-vault/evidence.module';
+import { FreezeGuardModule } from './modules/freezeguard/freezeguard.module';
 import { FreezeLockModule } from './modules/freezelock/freezelock.module';
 import { HealthModule } from './modules/health/health.module';
 import { RiskModule } from './modules/risk-fusion/risk.module';
@@ -74,6 +76,8 @@ import { SessionsModule } from './modules/sessions/sessions.module';
     SessionsModule,
     FreezeLockModule,
     RiskModule,
+    FreezeGuardModule,
+    A1ScamShieldModule,
   ],
   providers: [
     // Order matters: rate-limit first, then authenticate, then authorize.
