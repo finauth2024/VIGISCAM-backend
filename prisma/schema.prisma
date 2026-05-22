@@ -78,6 +78,8 @@ model Tenant {
   updatedAt DateTime     @updatedAt
 
   memberships Membership[]
+  devices     Device[]
+  sessions    Session[]
 
   @@index([type])
   @@map("tenants")
@@ -96,6 +98,8 @@ model User {
 
   memberships   Membership[]
   refreshTokens RefreshToken[]
+  devices       Device[]
+  sessions      Session[]
 
   @@map("users")
 }
@@ -136,6 +140,101 @@ model RefreshToken {
 
   @@index([userId])
   @@map("refresh_tokens")
+}
+
+// ───────────────────── Devices & sessions (Phase 1B) ─────────────────────
+
+enum DeviceType {
+  DESKTOP
+  MOBILE
+  TABLET
+  BROWSER_EXTENSION
+  OTHER
+}
+
+enum DeviceStatus {
+  ACTIVE
+  INACTIVE
+  REVOKED
+}
+
+/// An enrolled device belonging to a user (desktop agent, mobile app, extension).
+model Device {
+  id         String       @id @default(uuid()) @db.Uuid
+  userId     String       @db.Uuid
+  tenantId   String       @db.Uuid
+  name       String
+  type       DeviceType
+  platform   String?
+  status     DeviceStatus @default(ACTIVE)
+  trusted    Boolean      @default(false)
+  lastSeenAt DateTime?
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tenant   Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  sessions Session[]
+
+  @@index([userId])
+  @@index([tenantId])
+  @@map("devices")
+}
+
+/// One protected session type, discriminated by `type` (call/video/remote/etc).
+enum SessionType {
+  LIVE_CALL
+  VIDEO
+  REMOTE_DESKTOP
+  BROWSER
+  SCREEN_SHARE
+}
+
+enum SessionStatus {
+  ACTIVE
+  ENDED
+  FLAGGED
+}
+
+/// A monitored session. Risk and FREEZEGUARD/A1SCAMSHIELD telemetry attach here.
+model Session {
+  id        String        @id @default(uuid()) @db.Uuid
+  userId    String        @db.Uuid
+  tenantId  String        @db.Uuid
+  deviceId  String?       @db.Uuid
+  type      SessionType
+  status    SessionStatus @default(ACTIVE)
+  riskScore Int           @default(0)
+  startedAt DateTime      @default(now())
+  endedAt   DateTime?
+  metadata  Json?
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tenant Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  device Device? @relation(fields: [deviceId], references: [id], onDelete: SetNull)
+  events SessionEvent[]
+
+  @@index([userId])
+  @@index([tenantId])
+  @@index([status])
+  @@map("sessions")
+}
+
+/// A timestamped event within a session — an evidence marker for later phases.
+model SessionEvent {
+  id        String   @id @default(uuid()) @db.Uuid
+  sessionId String   @db.Uuid
+  type      String
+  detail    String?
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  session Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
+  @@map("session_events")
 }
 
 /// Foundational, cross-cutting audit table. Every sensitive action writes here

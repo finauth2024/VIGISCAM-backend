@@ -10,7 +10,9 @@ import { RolesGuard } from './common/auth/roles.guard';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { PrismaModule } from './common/prisma/prisma.module';
 import { AuthModule } from './modules/auth/auth.module';
+import { DevicesModule } from './modules/devices/devices.module';
 import { HealthModule } from './modules/health/health.module';
+import { SessionsModule } from './modules/sessions/sessions.module';
 
 /**
  * Root module. Wires the cross-cutting foundation:
@@ -62,6 +64,8 @@ import { HealthModule } from './modules/health/health.module';
     PrismaModule,
     HealthModule,
     AuthModule,
+    DevicesModule,
+    SessionsModule,
   ],
   providers: [
     // Order matters: rate-limit first, then authenticate, then authorize.
