@@ -482,3 +482,205 @@ model AuditLog {
   @@index([createdAt])
   @@map("audit_logs")
 }
+
+// ────────── ScamPulse Intelligence Foundation (Phase 2) ──────────
+
+enum IndicatorType {
+  PHONE
+  EMAIL
+  DOMAIN
+  URL
+  CRYPTO_WALLET
+  SCAM_PHRASE
+  FAKE_COMPANY
+  SOCIAL_PROFILE
+  OTHER
+}
+
+enum SignalSourceType {
+  USER_REPORT
+  PARTNER_REPORT
+  BANK_REPORT
+  INVESTIGATOR
+  GOVERNMENT_ADVISORY
+  PUBLIC_WEB
+  INTERNAL
+}
+
+/// Scam-signal lifecycle (PDF §11). A signal is never automatically verified.
+enum ScamSignalStatus {
+  UNVERIFIED_REPORT
+  SUSPICIOUS_SIGNAL
+  PATTERN_MATCH
+  UNDER_REVIEW
+  HIGH_RISK_INDICATOR
+  VERIFIED_SCAM_INTELLIGENCE
+  PUBLIC_SAFE_ALERT
+  ARCHIVED
+  REJECTED
+}
+
+/// Registry-entry lifecycle (PDF §15). Only PUBLISHED entries are public.
+enum RegistryEntryStatus {
+  CANDIDATE
+  UNDER_REVIEW
+  APPROVED_PUBLIC_SAFE
+  PUBLISHED
+  REJECTED
+  ARCHIVED
+}
+
+enum ReviewQueueStatus {
+  PENDING
+  IN_REVIEW
+  COMPLETED
+}
+
+/// Reference table of scam categories (PDF §12 / §28.4). Seeded by migration.
+model ScamCategory {
+  id          String   @id @default(uuid()) @db.Uuid
+  code        String   @unique
+  name        String
+  description String?
+  riskWeight  Int      @default(50)
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  @@map("scam_categories")
+}
+
+/// How much a class of source is trusted (PDF §28.3 / §31). Seeded by migration.
+model SourceReliabilityProfile {
+  id                       String   @id @default(uuid()) @db.Uuid
+  sourceType               String   @unique
+  baseReliabilityScore     Int
+  requiresReview           Boolean  @default(true)
+  allowedForPublicRegistry Boolean  @default(false)
+  notes                    String?
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
+
+  @@map("source_reliability_profiles")
+}
+
+/// A suspicious indicator submitted or ingested into VIGISCAM (PDF §28.1).
+/// Private by default — never automatically public.
+model ScamSignal {
+  id                     String           @id @default(uuid()) @db.Uuid
+  tenantId               String?          @db.Uuid
+  submittedByUserId      String?          @db.Uuid
+  sourceType             SignalSourceType
+  sourceName             String?
+  category               String?
+  indicatorType          IndicatorType
+  indicatorValue         String
+  normalizedIndicator    String
+  description            String?
+  rawText                String?
+  reportCount            Int              @default(1)
+  confidenceScore        Int              @default(0)
+  sourceReliabilityScore Int              @default(0)
+  evidenceStrengthScore  Int              @default(0)
+  recencyScore           Int              @default(0)
+  status                 ScamSignalStatus @default(UNVERIFIED_REPORT)
+  geography              String?
+  firstSeen              DateTime         @default(now())
+  lastSeen               DateTime         @default(now())
+  clusterId              String?          @db.Uuid
+  publicSafeCandidate    Boolean          @default(false)
+  createdAt              DateTime         @default(now())
+  updatedAt              DateTime         @updatedAt
+
+  evidence ScamSignalEvidence[]
+
+  @@index([normalizedIndicator])
+  @@index([indicatorType])
+  @@index([status])
+  @@index([tenantId])
+  @@map("scam_signals")
+}
+
+/// Evidence attached to a scam signal (PDF §28.2).
+model ScamSignalEvidence {
+  id                String   @id @default(uuid()) @db.Uuid
+  signalId          String   @db.Uuid
+  evidenceType      String
+  evidenceSummary   String?
+  fileUrl           String?
+  sourceUrl         String?
+  hashValue         String?
+  submittedByUserId String?  @db.Uuid
+  createdAt         DateTime @default(now())
+
+  signal ScamSignal @relation(fields: [signalId], references: [id], onDelete: Cascade)
+
+  @@index([signalId])
+  @@map("scam_signal_evidence")
+}
+
+/// A public-safe scam-intelligence item (PDF §28.8). Public only when PUBLISHED.
+model RegistryEntry {
+  id                  String              @id @default(uuid()) @db.Uuid
+  indicatorType       IndicatorType
+  indicatorValue      String
+  normalizedIndicator String
+  category            String
+  status              RegistryEntryStatus @default(CANDIDATE)
+  confidenceScore     Int                 @default(0)
+  publicSafeSummary   String
+  recommendedAction   String?
+  firstSeen           DateTime?
+  lastSeen            DateTime?
+  evidenceCount       Int                 @default(0)
+  sourceSignalId      String?             @db.Uuid
+  approvedByUserId    String?             @db.Uuid
+  approvedAt          DateTime?
+  publishedAt         DateTime?
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+
+  @@index([normalizedIndicator])
+  @@index([indicatorType])
+  @@index([status])
+  @@map("registry_entries")
+}
+
+/// The internal review queue gating intelligence on its way to the public
+/// registry (PDF §28.9). No raw report ever becomes public without review.
+model RegistryReviewQueue {
+  id               String            @id @default(uuid()) @db.Uuid
+  signalId         String?           @db.Uuid
+  registryEntryId  String?           @db.Uuid
+  reviewStatus     ReviewQueueStatus @default(PENDING)
+  publicSafe       Boolean           @default(false)
+  assignedToUserId String?           @db.Uuid
+  reviewNotes      String?
+  decision         String?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  @@index([reviewStatus])
+  @@map("registry_review_queue")
+}
+
+/// The stored result of a consumer scam check (PDF §28.10).
+model ScamCheckResult {
+  id              String        @id @default(uuid()) @db.Uuid
+  userId          String?       @db.Uuid
+  tenantId        String?       @db.Uuid
+  inputType       IndicatorType
+  inputValue      String
+  normalizedInput String
+  riskScore       Int
+  riskLevel       RiskLevel
+  category        String?
+  matchedRegistry Json?
+  matchedSignals  Json?
+  suggestedAction String
+  savedToEvidence Boolean       @default(false)
+  createdAt       DateTime      @default(now())
+
+  @@index([userId])
+  @@index([normalizedInput])
+  @@map("scam_check_results")
+}

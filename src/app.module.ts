@@ -19,6 +19,7 @@ import { FreezeGuardModule } from './modules/freezeguard/freezeguard.module';
 import { FreezeLockModule } from './modules/freezelock/freezelock.module';
 import { HealthModule } from './modules/health/health.module';
 import { RiskModule } from './modules/risk-fusion/risk.module';
+import { ScamSignalsModule } from './modules/scam-signals/scam-signals.module';
 import { SessionsModule } from './modules/sessions/sessions.module';
 
 /**
@@ -80,6 +81,7 @@ import { SessionsModule } from './modules/sessions/sessions.module';
     FreezeGuardModule,
     A1ScamShieldModule,
     FamiliesModule,
+    ScamSignalsModule,
   ],
   providers: [
     // Order matters: rate-limit first, then authenticate, then authorize.
