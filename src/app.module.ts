@@ -24,6 +24,7 @@ import { RiskModule } from './modules/risk-fusion/risk.module';
 import { ScamCheckModule } from './modules/scam-check/scam-check.module';
 import { ScamSignalsModule } from './modules/scam-signals/scam-signals.module';
 import { SessionsModule } from './modules/sessions/sessions.module';
+import { TakedownModule } from './modules/takedown/takedown.module';
 
 /**
  * Root module. Wires the cross-cutting foundation:
@@ -88,6 +89,7 @@ import { SessionsModule } from './modules/sessions/sessions.module';
     ScamCheckModule,
     RegistryModule,
     ReviewQueueModule,
+    TakedownModule,
   ],
   providers: [
     // Order matters: rate-limit first, then authenticate, then authorize.

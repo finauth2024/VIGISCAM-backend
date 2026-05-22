@@ -639,7 +639,8 @@ model RegistryEntry {
   createdAt           DateTime            @default(now())
   updatedAt           DateTime            @updatedAt
 
-  appeals RegistryAppeal[]
+  appeals   RegistryAppeal[]
+  takedowns TakedownRequest[]
 
   @@index([normalizedIndicator])
   @@index([indicatorType])
@@ -730,4 +731,57 @@ model RegistryAppeal {
   @@index([registryEntryId])
   @@index([status])
   @@map("registry_appeals")
+}
+
+// ────────── Registry Governance — takedown tracking (Phase 3D) ──────────
+
+/// The kind of provider a takedown request is addressed to (PDF §27).
+enum TakedownProviderType {
+  DOMAIN_REGISTRAR
+  HOSTING_PROVIDER
+  TELECOM_CARRIER
+  EMAIL_PROVIDER
+  SOCIAL_PLATFORM
+  PAYMENT_PROVIDER
+  APP_STORE
+  LAW_ENFORCEMENT
+  OTHER
+}
+
+/// Takedown lifecycle. DRAFT -> SUBMITTED -> ACKNOWLEDGED -> IN_PROGRESS ->
+/// COMPLETED / REJECTED; any non-terminal state can be WITHDRAWN.
+enum TakedownStatus {
+  DRAFT
+  SUBMITTED
+  ACKNOWLEDGED
+  IN_PROGRESS
+  COMPLETED
+  REJECTED
+  WITHDRAWN
+}
+
+/// A request VIGISCAM sends to an external provider asking them to take down
+/// the scam infrastructure behind a registry entry (PDF §27). Operational and
+/// internal-only — never public. Every status change is written to evidence.
+model TakedownRequest {
+  id                String               @id @default(uuid()) @db.Uuid
+  registryEntryId   String               @db.Uuid
+  providerType      TakedownProviderType
+  providerName      String
+  providerReference String?
+  status            TakedownStatus       @default(DRAFT)
+  details           String
+  submittedByUserId String?              @db.Uuid
+  submittedAt       DateTime?
+  resolvedByUserId  String?              @db.Uuid
+  resolvedAt        DateTime?
+  outcomeNotes      String?
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+
+  registryEntry RegistryEntry @relation(fields: [registryEntryId], references: [id], onDelete: Cascade)
+
+  @@index([registryEntryId])
+  @@index([status])
+  @@map("takedown_requests")
 }
