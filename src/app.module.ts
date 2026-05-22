@@ -18,6 +18,7 @@ import { FamiliesModule } from './modules/families/families.module';
 import { FreezeGuardModule } from './modules/freezeguard/freezeguard.module';
 import { FreezeLockModule } from './modules/freezelock/freezelock.module';
 import { HealthModule } from './modules/health/health.module';
+import { RegistryModule } from './modules/registry/registry.module';
 import { RiskModule } from './modules/risk-fusion/risk.module';
 import { ScamCheckModule } from './modules/scam-check/scam-check.module';
 import { ScamSignalsModule } from './modules/scam-signals/scam-signals.module';
@@ -84,6 +85,7 @@ import { SessionsModule } from './modules/sessions/sessions.module';
     FamiliesModule,
     ScamSignalsModule,
     ScamCheckModule,
+    RegistryModule,
   ],
   providers: [
     // Order matters: rate-limit first, then authenticate, then authorize.
