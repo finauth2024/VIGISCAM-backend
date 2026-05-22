@@ -639,6 +639,8 @@ model RegistryEntry {
   createdAt           DateTime            @default(now())
   updatedAt           DateTime            @updatedAt
 
+  appeals RegistryAppeal[]
+
   @@index([normalizedIndicator])
   @@index([indicatorType])
   @@index([status])
@@ -683,4 +685,49 @@ model ScamCheckResult {
   @@index([userId])
   @@index([normalizedInput])
   @@map("scam_check_results")
+}
+
+// ────────── Registry Governance — corrections & appeals (Phase 3C) ──────────
+
+/// What a contesting party is asking for (PDF §27).
+enum RegistryAppealType {
+  CORRECTION // a listed detail is inaccurate
+  REMOVAL // the indicator should not be listed at all
+  OWNERSHIP_DISPUTE // "this is mine and it is legitimate"
+}
+
+/// Appeal lifecycle. Filing an appeal never alters the entry — only a reviewed
+/// decision can. A SUBMITTED appeal is decided UNDER_REVIEW -> ACCEPTED/REJECTED.
+enum RegistryAppealStatus {
+  SUBMITTED
+  UNDER_REVIEW
+  ACCEPTED
+  REJECTED
+}
+
+/// A correction / appeal against a PUBLISHED registry entry (PDF §27). Anyone
+/// affected can contest a public entry; a compliance reviewer decides. The
+/// submitter's contact details are stored privately and never made public.
+model RegistryAppeal {
+  id                    String               @id @default(uuid()) @db.Uuid
+  registryEntryId       String               @db.Uuid
+  appealType            RegistryAppealType
+  status                RegistryAppealStatus @default(SUBMITTED)
+  submitterName         String
+  submitterEmail        String
+  submitterRelationship String?
+  reason                String
+  requestedChange       String?
+  reviewedByUserId      String?              @db.Uuid
+  reviewedAt            DateTime?
+  reviewNotes           String?
+  resolutionAction      String?
+  createdAt             DateTime             @default(now())
+  updatedAt             DateTime             @updatedAt
+
+  registryEntry RegistryEntry @relation(fields: [registryEntryId], references: [id], onDelete: Cascade)
+
+  @@index([registryEntryId])
+  @@index([status])
+  @@map("registry_appeals")
 }
