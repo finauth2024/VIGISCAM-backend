@@ -119,6 +119,18 @@ export class ScamSignalsService {
       ipAddress: ctx.ip ?? null,
     });
 
+    // High-risk signals are queued for internal review (PDF §16.1).
+    if (signal.status === 'SUSPICIOUS_SIGNAL' || signal.status === 'PATTERN_MATCH') {
+      const queued = await this.prisma.registryReviewQueue.findFirst({
+        where: { signalId: signal.id, reviewStatus: { not: 'COMPLETED' } },
+      });
+      if (!queued) {
+        await this.prisma.registryReviewQueue.create({
+          data: { signalId: signal.id, reviewStatus: 'PENDING' },
+        });
+      }
+    }
+
     // The public response is always the same — internal status is never leaked.
     return { status: 'UNVERIFIED_REPORT', message: REPORT_ACK, signalId: signal.id };
   }
