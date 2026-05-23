@@ -839,9 +839,61 @@ model ScamCluster {
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
 
-  signals ScamSignal[]
+  signals        ScamSignal[]
+  detectionRules DetectionRule[]
 
   @@index([matchType])
   @@index([status])
   @@map("scam_clusters")
+}
+
+// ────────── Detection Rules — pattern library (Phase 4B) ──────────
+
+/// What a detection rule matches against (PDF §33).
+enum DetectionRuleType {
+  PHRASE_MATCH
+  INDICATOR_PATTERN
+  CATEGORY_RULE
+  COMBINED
+}
+
+/// Rule lifecycle (PDF §33). A rule is NEVER auto-active — it is created
+/// as DRAFT and only an admin can transition it through TESTING -> ACTIVE.
+/// DRAFT -> ACTIVE is structurally forbidden (the no-auto-activation gate).
+enum DetectionRuleStatus {
+  DRAFT
+  TESTING
+  ACTIVE
+  DISABLED
+  RETIRED
+}
+
+/// A reusable detection rule derived from verified intelligence or authored
+/// by a reviewer (PDF §33, §45 DetectionRuleService). Stored and managed
+/// here; applying rules to live signals is wired in later phases. Rules are
+/// intelligence-only, never a public surface.
+model DetectionRule {
+  id                String              @id @default(uuid()) @db.Uuid
+  name              String
+  description       String
+  ruleType          DetectionRuleType
+  pattern           Json
+  category          String?
+  severity          RiskLevel           @default(MEDIUM)
+  status            DetectionRuleStatus @default(DRAFT)
+  version           Int                 @default(1)
+  sourceClusterId   String?             @db.Uuid
+  createdByUserId   String?             @db.Uuid
+  activatedByUserId String?             @db.Uuid
+  activatedAt       DateTime?
+  disabledAt        DateTime?
+  retiredAt         DateTime?
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  cluster ScamCluster? @relation(fields: [sourceClusterId], references: [id], onDelete: SetNull)
+
+  @@index([status])
+  @@index([ruleType])
+  @@map("detection_rules")
 }
