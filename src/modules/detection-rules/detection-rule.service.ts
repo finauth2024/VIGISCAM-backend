@@ -39,10 +39,45 @@ export class DetectionRuleService {
   ) {}
 
   /** Create a new rule. Always lands as DRAFT. */
-  async create(
+  create(
     actor: AuthenticatedUser,
     dto: CreateDetectionRuleDto,
     ctx: RequestContext = {},
+  ): Promise<DetectionRule> {
+    return this.createInternal(
+      actor,
+      dto,
+      ctx,
+      'RULE_CREATED',
+      'Detection rule created as DRAFT',
+    );
+  }
+
+  /**
+   * Create a rule from an AI-generated suggestion (Phase 4C). Same DB write as
+   * `create`, but emits RULE_SUGGESTED so the audit trail distinguishes
+   * reviewer-authored rules from suggestions.
+   */
+  createSuggestion(
+    actor: AuthenticatedUser,
+    dto: CreateDetectionRuleDto,
+    ctx: RequestContext = {},
+  ): Promise<DetectionRule> {
+    return this.createInternal(
+      actor,
+      dto,
+      ctx,
+      'RULE_SUGGESTED',
+      'Detection rule suggested from verified intelligence (DRAFT)',
+    );
+  }
+
+  private async createInternal(
+    actor: AuthenticatedUser,
+    dto: CreateDetectionRuleDto,
+    ctx: RequestContext,
+    eventType: string,
+    description: string,
   ): Promise<DetectionRule> {
     const rule = await this.prisma.detectionRule.create({
       data: {
@@ -57,7 +92,7 @@ export class DetectionRuleService {
         createdByUserId: actor.userId,
       },
     });
-    await this.logEvidence(rule, actor, 'RULE_CREATED', 'Detection rule created as DRAFT', ctx);
+    await this.logEvidence(rule, actor, eventType, description, ctx);
     return rule;
   }
 
@@ -166,6 +201,17 @@ export class DetectionRuleService {
     return updated;
   }
 
+  /** Reflect who actually acted in the audit trail (admin vs reviewer). */
+  private actorTypeFor(role: MembershipRole): string {
+    if (role === MembershipRole.SUPER_ADMIN || role === MembershipRole.COMPLIANCE_OFFICER) {
+      return 'ADMIN';
+    }
+    if (role === MembershipRole.REVIEWER) {
+      return 'REVIEWER';
+    }
+    return 'STAFF';
+  }
+
   private logEvidence(
     rule: DetectionRule,
     actor: AuthenticatedUser,
@@ -176,7 +222,7 @@ export class DetectionRuleService {
     return this.evidence.append({
       tenantId: null,
       actorId: actor.userId,
-      actorType: 'REVIEWER',
+      actorType: this.actorTypeFor(actor.role),
       entityType: 'DETECTION_RULE',
       entityId: rule.id,
       eventType,
