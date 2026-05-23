@@ -20,6 +20,7 @@ import { FamiliesModule } from './modules/families/families.module';
 import { FreezeGuardModule } from './modules/freezeguard/freezeguard.module';
 import { FreezeLockModule } from './modules/freezelock/freezelock.module';
 import { HealthModule } from './modules/health/health.module';
+import { IntelligenceMetricsModule } from './modules/intelligence-metrics/intelligence-metrics.module';
 import { InternalAdminModule } from './modules/internal-admin/internal-admin.module';
 import { RegistryModule } from './modules/registry/registry.module';
 import { ReviewQueueModule } from './modules/review-queue/review-queue.module';
@@ -96,6 +97,7 @@ import { TakedownModule } from './modules/takedown/takedown.module';
     InternalAdminModule,
     ClusteringModule,
     DetectionRulesModule,
+    IntelligenceMetricsModule,
   ],
   providers: [
     // Order matters: rate-limit first, then authenticate, then authorize.
