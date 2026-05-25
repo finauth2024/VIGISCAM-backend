@@ -77,16 +77,17 @@ model Tenant {
   createdAt DateTime     @default(now())
   updatedAt DateTime     @updatedAt
 
-  memberships          Membership[]
-  devices              Device[]
-  sessions             Session[]
-  riskEvents           RiskEvent[]
-  freezeLockEvents     FreezeLockEvent[]
-  alerts               Alert[]
-  trustedContacts      TrustedContact[]
-  guardianLinks        GuardianLink[]
-  partnerApiKeys       PartnerApiKey[]
-  webhookSubscriptions WebhookSubscription[]
+  memberships            Membership[]
+  devices                Device[]
+  sessions               Session[]
+  riskEvents             RiskEvent[]
+  freezeLockEvents       FreezeLockEvent[]
+  alerts                 Alert[]
+  trustedContacts        TrustedContact[]
+  guardianLinks          GuardianLink[]
+  partnerApiKeys         PartnerApiKey[]
+  webhookSubscriptions   WebhookSubscription[]
+  evidenceExportBundles  EvidenceExportBundle[]
 
   @@index([type])
   @@map("tenants")
@@ -1013,4 +1014,35 @@ model WebhookDelivery {
   @@index([tenantId])
   @@index([status])
   @@map("webhook_deliveries")
+}
+
+// ────────── Partner evidence export bundles (Phase 5E) ──────────
+
+enum EvidenceExportBundleStatus {
+  READY
+  EXPIRED
+}
+
+/// A frozen snapshot of a tenant's Evidence Vault events, with a SHA-256
+/// checksum so the partner can prove integrity to a third party (PDF §39
+/// "legal export controls", docs/04 §6). The bundle is computed once at
+/// generation time and re-served verbatim on download — never recomputed —
+/// so the legal record cannot drift after the fact.
+model EvidenceExportBundle {
+  id               String                     @id @default(uuid()) @db.Uuid
+  tenantId         String                     @db.Uuid
+  requestedByKeyId String?                    @db.Uuid
+  filters          Json
+  recordCount      Int
+  checksum         String
+  bundle           Json
+  status           EvidenceExportBundleStatus @default(READY)
+  expiresAt        DateTime?
+  createdAt        DateTime                   @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([status])
+  @@map("evidence_export_bundles")
 }
