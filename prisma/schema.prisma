@@ -85,6 +85,7 @@ model Tenant {
   alerts           Alert[]
   trustedContacts  TrustedContact[]
   guardianLinks    GuardianLink[]
+  partnerApiKeys   PartnerApiKey[]
 
   @@index([type])
   @@map("tenants")
@@ -896,4 +897,47 @@ model DetectionRule {
   @@index([status])
   @@index([ruleType])
   @@map("detection_rules")
+}
+
+// ────────── Partner API keys — tenant-scoped auth (Phase 5A) ──────────
+
+/// Capabilities a partner API key can carry (PDF §39 enterprise API keys).
+enum PartnerApiKeyScope {
+  REPORT_SUBMIT
+  READ_TENANT_INTEL
+  EVIDENCE_EXPORT
+  WEBHOOK_MANAGE
+}
+
+enum PartnerApiKeyStatus {
+  ACTIVE
+  REVOKED
+  EXPIRED
+}
+
+/// A long-lived credential a partner tenant (bank / platform / agency /
+/// enterprise) uses to authenticate machine-to-machine calls into VIGISCAM.
+/// The raw key is shown exactly ONCE at issuance and never stored — only its
+/// SHA-256 hash and a short display prefix are retained. Every authenticated
+/// call touches `lastUsedAt`. Internal-only management.
+model PartnerApiKey {
+  id              String                @id @default(uuid()) @db.Uuid
+  tenantId        String                @db.Uuid
+  keyHash         String                @unique
+  keyPrefix       String
+  label           String
+  scopes          PartnerApiKeyScope[]
+  status          PartnerApiKeyStatus   @default(ACTIVE)
+  createdByUserId String?               @db.Uuid
+  expiresAt       DateTime?
+  lastUsedAt      DateTime?
+  revokedAt       DateTime?
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([status])
+  @@map("partner_api_keys")
 }
