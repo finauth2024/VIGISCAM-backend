@@ -1,19 +1,31 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
-import { ScamSignal, ScamSignalStatus } from '@prisma/client';
+import { ScamSignal, ScamSignalStatus, SignalSourceType, TenantType } from '@prisma/client';
 import { RequestContext } from '../../common/auth/auth.types';
+import { PartnerPrincipal } from '../../common/auth/partner.types';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { ClusterService } from '../clustering/cluster.service';
 import { EvidenceService } from '../evidence-vault/evidence.service';
 import { SubmitScamReportDto } from './dto/submit-scam-report.dto';
 import { normalizeIndicator } from './normalization';
 
-const REPORT_ACK =
+const PUBLIC_REPORT_ACK =
   'Report received. VIGISCAM will review and classify the signal before any public-safe use.';
+const PARTNER_REPORT_ACK =
+  'Partner report accepted and queued for review.';
 
 export interface SubmitReportResult {
   status: 'UNVERIFIED_REPORT';
   message: string;
   signalId: string;
+}
+
+export interface PartnerReportResult {
+  status: 'PARTNER_REPORT_ACCEPTED';
+  message: string;
+  signalId: string;
+  internalStatus: ScamSignalStatus;
+  clusterId: string | null;
+  confidenceScore: number;
 }
 
 interface SignalScores {
@@ -23,10 +35,21 @@ interface SignalScores {
   confidenceScore: number;
 }
 
+interface IntakeOptions {
+  dto: SubmitScamReportDto;
+  sourceType: SignalSourceType;
+  tenantId?: string | null;
+  submittedByUserId?: string | null;
+  actorType: 'PUBLIC' | 'PARTNER' | 'INTERNAL';
+  extraEvidenceMetadata?: Record<string, unknown>;
+}
+
 /**
  * Scam-signal intake (PDF §11, §16.1, §30, §31). A report is normalized,
- * de-duplicated, reliability/confidence-scored, stored privately, and logged
- * to the Evidence Vault. A signal is NEVER automatically verified or public.
+ * de-duplicated, reliability/confidence-scored, stored privately, clustered,
+ * and logged to the Evidence Vault. A signal is NEVER automatically verified
+ * or public. Both public (`submitReport`) and partner (`submitPartnerReport`)
+ * intake paths share one private intake engine.
  */
 @Injectable()
 export class ScamSignalsService {
@@ -38,13 +61,93 @@ export class ScamSignalsService {
     private readonly cluster: ClusterService,
   ) {}
 
+  /** Public intake — anonymous, USER_REPORT reliability profile. */
   async submitReport(
     dto: SubmitScamReportDto,
     ctx: RequestContext = {},
   ): Promise<SubmitReportResult> {
+    const signal = await this.intake({ dto, sourceType: 'USER_REPORT', actorType: 'PUBLIC' }, ctx);
+    // The public response never leaks internal status.
+    return { status: 'UNVERIFIED_REPORT', message: PUBLIC_REPORT_ACK, signalId: signal.id };
+  }
+
+  /**
+   * Partner intake (Phase 5B). The signal is tagged with the partner tenant
+   * and the partner's source type (derived from the tenant's category), which
+   * carries a higher base reliability than a public user report.
+   */
+  async submitPartnerReport(
+    partner: PartnerPrincipal,
+    dto: SubmitScamReportDto,
+    ctx: RequestContext = {},
+  ): Promise<PartnerReportResult> {
+    const tenant = await this.prisma.tenant.findUnique({ where: { id: partner.tenantId } });
+    if (!tenant) {
+      // Should not happen — the API key has a FK to a Tenant; defensive only.
+      throw new NotFoundException('Partner tenant not found');
+    }
+    const sourceType = this.partnerSourceTypeFor(tenant.type);
+    const signal = await this.intake(
+      {
+        dto,
+        sourceType,
+        tenantId: partner.tenantId,
+        actorType: 'PARTNER',
+        extraEvidenceMetadata: {
+          partnerKeyId: partner.keyId,
+          partnerKeyPrefix: partner.keyPrefix,
+          tenantType: tenant.type,
+        },
+      },
+      ctx,
+    );
+    return {
+      status: 'PARTNER_REPORT_ACCEPTED',
+      message: PARTNER_REPORT_ACK,
+      signalId: signal.id,
+      internalStatus: signal.status,
+      clusterId: signal.clusterId,
+      confidenceScore: signal.confidenceScore,
+    };
+  }
+
+  /** Reviewer-facing signal list. */
+  listSignals(status?: string): Promise<ScamSignal[]> {
+    const valid = (Object.values(ScamSignalStatus) as string[]).includes(status ?? '');
+    return this.prisma.scamSignal.findMany({
+      where: valid ? { status: status as ScamSignalStatus } : {},
+      orderBy: { lastSeen: 'desc' },
+      take: 200,
+    });
+  }
+
+  /** Reviewer-facing signal detail. */
+  async getSignal(id: string) {
+    const signal = await this.prisma.scamSignal.findUnique({
+      where: { id },
+      include: { evidence: true },
+    });
+    if (!signal) {
+      throw new NotFoundException('Scam signal not found');
+    }
+    return signal;
+  }
+
+  // ─────────────── Private intake engine ───────────────
+
+  private async intake(opts: IntakeOptions, ctx: RequestContext): Promise<ScamSignal> {
+    const {
+      dto,
+      sourceType,
+      tenantId = null,
+      submittedByUserId = null,
+      actorType,
+      extraEvidenceMetadata,
+    } = opts;
+
     const normalized = normalizeIndicator(dto.indicatorType, dto.indicatorValue);
     const profile = await this.prisma.sourceReliabilityProfile.findUnique({
-      where: { sourceType: 'USER_REPORT' },
+      where: { sourceType },
     });
     const base = profile?.baseReliabilityScore ?? 35;
 
@@ -93,7 +196,9 @@ export class ScamSignalsService {
       });
       signal = await this.prisma.scamSignal.create({
         data: {
-          sourceType: 'USER_REPORT',
+          sourceType,
+          tenantId,
+          submittedByUserId,
           indicatorType: dto.indicatorType,
           indicatorValue: dto.indicatorValue.trim(),
           normalizedIndicator: normalized,
@@ -109,8 +214,8 @@ export class ScamSignalsService {
     }
 
     await this.evidence.append({
-      tenantId: null,
-      actorType: 'PUBLIC',
+      tenantId,
+      actorType,
       entityType: 'SCAM_SIGNAL',
       entityId: signal.id,
       eventType: isDuplicate ? 'SIGNAL_DUPLICATE_MERGED' : 'SIGNAL_COLLECTED',
@@ -119,6 +224,8 @@ export class ScamSignalsService {
         indicatorType: dto.indicatorType,
         reportCount: signal.reportCount,
         confidenceScore: signal.confidenceScore,
+        sourceType,
+        ...(extraEvidenceMetadata ?? {}),
       },
       ipAddress: ctx.ip ?? null,
     });
@@ -143,30 +250,24 @@ export class ScamSignalsService {
       }
     }
 
-    // The public response is always the same — internal status is never leaked.
-    return { status: 'UNVERIFIED_REPORT', message: REPORT_ACK, signalId: signal.id };
-  }
-
-  /** Reviewer-facing signal list. */
-  listSignals(status?: string): Promise<ScamSignal[]> {
-    const valid = (Object.values(ScamSignalStatus) as string[]).includes(status ?? '');
-    return this.prisma.scamSignal.findMany({
-      where: valid ? { status: status as ScamSignalStatus } : {},
-      orderBy: { lastSeen: 'desc' },
-      take: 200,
-    });
-  }
-
-  /** Reviewer-facing signal detail. */
-  async getSignal(id: string) {
-    const signal = await this.prisma.scamSignal.findUnique({
-      where: { id },
-      include: { evidence: true },
-    });
-    if (!signal) {
-      throw new NotFoundException('Scam signal not found');
-    }
     return signal;
+  }
+
+  /** Map a partner tenant's type to the right SignalSourceType (PDF §31). */
+  private partnerSourceTypeFor(tenantType: TenantType): SignalSourceType {
+    switch (tenantType) {
+      case TenantType.BANK:
+        return 'BANK_REPORT';
+      case TenantType.AGENCY:
+        return 'GOVERNMENT_ADVISORY';
+      case TenantType.INVESTIGATOR:
+        return 'INVESTIGATOR';
+      case TenantType.INTERNAL:
+        return 'INTERNAL';
+      default:
+        // PLATFORM, ENTERPRISE (and the never-eligible PUBLIC/PERSONAL/FAMILY).
+        return 'PARTNER_REPORT';
+    }
   }
 
   /** Confidence model (PDF §31) — 0–100 from weighted sub-scores. */
