@@ -232,8 +232,16 @@ export class ScamSignalsService {
 
     // Connect the signal into a cluster of related scam infrastructure
     // (PDF §32). Best-effort — a clustering failure must never fail intake.
+    // After the link, re-fetch so the returned object reflects the new
+    // clusterId (the in-memory copy from the initial create/update is stale).
     try {
       await this.cluster.clusterSignal(signal, ctx);
+      const refreshed = await this.prisma.scamSignal.findUnique({
+        where: { id: signal.id },
+      });
+      if (refreshed) {
+        signal = refreshed;
+      }
     } catch (err) {
       this.logger.warn(`Clustering failed for signal ${signal.id}: ${String(err)}`);
     }

@@ -109,17 +109,35 @@ export class WebhookService {
     actor: AuthenticatedUser,
     id: string,
     ctx: RequestContext = {},
-  ): Promise<WebhookSubscription> {
+  ): Promise<Omit<WebhookSubscription, 'secret'>> {
     const sub = await this.prisma.webhookSubscription.findUnique({ where: { id } });
     if (!sub) {
       throw new NotFoundException('Webhook subscription not found');
     }
+    // The raw HMAC secret is shown ONCE at creation and must never re-appear
+    // in any response — project it out of the update return shape.
+    const safeSelect = {
+      id: true,
+      tenantId: true,
+      url: true,
+      eventTypes: true,
+      status: true,
+      label: true,
+      createdByUserId: true,
+      revokedAt: true,
+      createdAt: true,
+      updatedAt: true,
+    } as const;
     if (sub.status === 'REVOKED') {
-      return sub;
+      return this.prisma.webhookSubscription.findUniqueOrThrow({
+        where: { id },
+        select: safeSelect,
+      });
     }
     const updated = await this.prisma.webhookSubscription.update({
       where: { id },
       data: { status: 'REVOKED', revokedAt: new Date() },
+      select: safeSelect,
     });
     await this.evidence.append({
       tenantId: sub.tenantId,

@@ -83,31 +83,53 @@ export class PartnerKeyService {
     return { rawKey: raw, record };
   }
 
+  /**
+   * Safe projection — everything an admin needs to see EXCEPT the SHA-256
+   * `keyHash`. Hashes are one-way but expose unnecessary attack surface;
+   * never return them from any API surface.
+   */
+  private readonly safeSelect = {
+    id: true,
+    tenantId: true,
+    keyPrefix: true,
+    label: true,
+    scopes: true,
+    status: true,
+    createdByUserId: true,
+    expiresAt: true,
+    lastUsedAt: true,
+    revokedAt: true,
+    createdAt: true,
+    updatedAt: true,
+  } as const;
+
   /** List keys, optionally scoped to one tenant. Hashes are never returned. */
-  listKeys(tenantId?: string): Promise<PartnerApiKey[]> {
+  listKeys(tenantId?: string) {
     return this.prisma.partnerApiKey.findMany({
       where: tenantId ? { tenantId } : {},
       orderBy: { createdAt: 'desc' },
       take: 200,
+      select: this.safeSelect,
     });
   }
 
   /** Revoke a key. Idempotent — revoking an already-revoked key is a no-op. */
-  async revokeKey(
-    actor: AuthenticatedUser,
-    id: string,
-    ctx: RequestContext = {},
-  ): Promise<PartnerApiKey> {
+  async revokeKey(actor: AuthenticatedUser, id: string, ctx: RequestContext = {}) {
     const key = await this.prisma.partnerApiKey.findUnique({ where: { id } });
     if (!key) {
       throw new NotFoundException('Partner API key not found');
     }
     if (key.status === 'REVOKED') {
-      return key;
+      // Re-project through the safe select so we never echo keyHash back.
+      return this.prisma.partnerApiKey.findUnique({
+        where: { id },
+        select: this.safeSelect,
+      });
     }
     const updated = await this.prisma.partnerApiKey.update({
       where: { id },
       data: { status: 'REVOKED', revokedAt: new Date() },
+      select: this.safeSelect,
     });
     await this.evidence.append({
       tenantId: key.tenantId,
