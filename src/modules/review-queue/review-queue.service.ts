@@ -1,8 +1,9 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { RegistryReviewQueue, ScamSignal, ScamSignalStatus, ReviewQueueStatus } from '@prisma/client';
 import { AuthenticatedUser, RequestContext } from '../../common/auth/auth.types';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { EvidenceService } from '../evidence-vault/evidence.service';
+import { WebhookService } from '../webhooks/webhook.service';
 import { ReviewDecision, ReviewSignalDto } from './dto/review-signal.dto';
 
 /** Maps a reviewer decision to the scam-signal status it sets. */
@@ -21,9 +22,12 @@ const DECISION_STATUS: Record<ReviewDecision, ScamSignalStatus> = {
  */
 @Injectable()
 export class ReviewQueueService {
+  private readonly logger = new Logger(ReviewQueueService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly evidence: EvidenceService,
+    private readonly webhooks: WebhookService,
   ) {}
 
   /** List queue items, each with a light summary of its signal. */
@@ -136,6 +140,23 @@ export class ReviewQueueService {
       metadata: { decision: dto.decision, newStatus, notes: dto.notes ?? null },
       ipAddress: ctx.ip ?? null,
     });
+
+    // Notify the originating partner tenant when their signal has been
+    // promoted to verified intelligence (Phase 5D). Best-effort — a webhook
+    // failure must never break the review action.
+    if (promoted && updatedSignal.tenantId) {
+      try {
+        await this.webhooks.publish('SIGNAL_VERIFIED', updatedSignal.tenantId, {
+          signalId: updatedSignal.id,
+          indicatorType: updatedSignal.indicatorType,
+          indicatorValue: updatedSignal.indicatorValue,
+          status: updatedSignal.status,
+          confidenceScore: updatedSignal.confidenceScore,
+        });
+      } catch (err) {
+        this.logger.warn(`Webhook publish failed for signal ${updatedSignal.id}: ${String(err)}`);
+      }
+    }
 
     return { signal: updatedSignal, reviewItem };
   }

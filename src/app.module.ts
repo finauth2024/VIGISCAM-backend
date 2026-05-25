@@ -31,6 +31,7 @@ import { ScamCheckModule } from './modules/scam-check/scam-check.module';
 import { ScamSignalsModule } from './modules/scam-signals/scam-signals.module';
 import { SessionsModule } from './modules/sessions/sessions.module';
 import { TakedownModule } from './modules/takedown/takedown.module';
+import { WebhooksModule } from './modules/webhooks/webhooks.module';
 
 /**
  * Root module. Wires the cross-cutting foundation:
@@ -102,6 +103,7 @@ import { TakedownModule } from './modules/takedown/takedown.module';
     IntelligenceMetricsModule,
     PartnerKeysModule,
     PartnerIntelligenceModule,
+    WebhooksModule,
   ],
   providers: [
     // Order matters: rate-limit first, then authenticate, then authorize.

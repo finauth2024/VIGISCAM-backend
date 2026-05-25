@@ -77,15 +77,16 @@ model Tenant {
   createdAt DateTime     @default(now())
   updatedAt DateTime     @updatedAt
 
-  memberships      Membership[]
-  devices          Device[]
-  sessions         Session[]
-  riskEvents       RiskEvent[]
-  freezeLockEvents FreezeLockEvent[]
-  alerts           Alert[]
-  trustedContacts  TrustedContact[]
-  guardianLinks    GuardianLink[]
-  partnerApiKeys   PartnerApiKey[]
+  memberships          Membership[]
+  devices              Device[]
+  sessions             Session[]
+  riskEvents           RiskEvent[]
+  freezeLockEvents     FreezeLockEvent[]
+  alerts               Alert[]
+  trustedContacts      TrustedContact[]
+  guardianLinks        GuardianLink[]
+  partnerApiKeys       PartnerApiKey[]
+  webhookSubscriptions WebhookSubscription[]
 
   @@index([type])
   @@map("tenants")
@@ -940,4 +941,76 @@ model PartnerApiKey {
   @@index([tenantId])
   @@index([status])
   @@map("partner_api_keys")
+}
+
+// ────────── Outbound webhooks — partner notifications (Phase 5D) ──────────
+
+/// Event types that VIGISCAM delivers to partner-tenant webhooks.
+enum WebhookEventType {
+  SIGNAL_VERIFIED
+  REGISTRY_PUBLISHED
+  REGISTRY_UNPUBLISHED
+}
+
+enum WebhookSubscriptionStatus {
+  ACTIVE
+  PAUSED
+  REVOKED
+}
+
+enum WebhookDeliveryStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+}
+
+/// A partner-tenant subscription to outbound event notifications.
+/// The shared HMAC secret is generated server-side, returned to the partner
+/// exactly ONCE at creation, and used to sign every delivery so the partner
+/// can verify authenticity (Stripe-style scheme).
+model WebhookSubscription {
+  id              String                    @id @default(uuid()) @db.Uuid
+  tenantId        String                    @db.Uuid
+  url             String
+  secret          String
+  eventTypes      WebhookEventType[]
+  status          WebhookSubscriptionStatus @default(ACTIVE)
+  label           String?
+  createdByUserId String?                   @db.Uuid
+  revokedAt       DateTime?
+  createdAt       DateTime                  @default(now())
+  updatedAt       DateTime                  @updatedAt
+
+  tenant     Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  deliveries WebhookDelivery[]
+
+  @@index([tenantId])
+  @@index([status])
+  @@map("webhook_subscriptions")
+}
+
+/// One delivery attempt for a webhook event. Persisted for audit and
+/// partner-side debugging.
+model WebhookDelivery {
+  id             String                @id @default(uuid()) @db.Uuid
+  subscriptionId String                @db.Uuid
+  tenantId       String                @db.Uuid
+  eventType      WebhookEventType
+  payload        Json
+  signature      String
+  attempt        Int                   @default(1)
+  status         WebhookDeliveryStatus @default(PENDING)
+  responseStatus Int?
+  responseBody   String?
+  error          String?
+  deliveredAt    DateTime?
+  succeededAt    DateTime?
+  createdAt      DateTime              @default(now())
+
+  subscription WebhookSubscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  @@index([subscriptionId])
+  @@index([tenantId])
+  @@index([status])
+  @@map("webhook_deliveries")
 }

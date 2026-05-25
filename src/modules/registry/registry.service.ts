@@ -2,13 +2,15 @@ import {
   BadRequestException,
   ConflictException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
-import { IndicatorType, Prisma, RegistryEntry, RegistryEntryStatus } from '@prisma/client';
+import { IndicatorType, Prisma, RegistryEntry, RegistryEntryStatus, WebhookEventType } from '@prisma/client';
 import { AuthenticatedUser, RequestContext } from '../../common/auth/auth.types';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { EvidenceService } from '../evidence-vault/evidence.service';
 import { normalizeIndicator } from '../scam-signals/normalization';
+import { WebhookService } from '../webhooks/webhook.service';
 import { CreateRegistryCandidateDto } from './dto/create-registry-candidate.dto';
 import { PublicRegistryEntry, toPublicRegistryEntry } from './registry.mapper';
 import { assertPublicSafeLanguage } from './safe-language';
@@ -28,9 +30,12 @@ export interface RegistrySearchQuery {
  */
 @Injectable()
 export class RegistryService {
+  private readonly logger = new Logger(RegistryService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly evidence: EvidenceService,
+    private readonly webhooks: WebhookService,
   ) {}
 
   // ─────────────────── Public search (Phase 2D) ───────────────────
@@ -183,6 +188,7 @@ export class RegistryService {
       data: { status: 'PUBLISHED', publishedAt: new Date() },
     });
     await this.logEvidence(updated, admin, 'ADMIN', 'REGISTRY_PUBLISHED', 'Registry entry published to the public registry', ctx);
+    await this.notifyPartner(updated, 'REGISTRY_PUBLISHED');
     return updated;
   }
 
@@ -194,7 +200,36 @@ export class RegistryService {
       data: { status: 'APPROVED_PUBLIC_SAFE', publishedAt: null },
     });
     await this.logEvidence(updated, admin, 'ADMIN', 'REGISTRY_UNPUBLISHED', 'Registry entry removed from the public registry', ctx);
+    await this.notifyPartner(updated, 'REGISTRY_UNPUBLISHED');
     return updated;
+  }
+
+  /**
+   * Notify the partner tenant whose signal seeded this registry entry that
+   * its publication state has changed (Phase 5D). Best-effort — a webhook
+   * failure must never break the publish/unpublish action.
+   */
+  private async notifyPartner(entry: RegistryEntry, eventType: WebhookEventType): Promise<void> {
+    if (!entry.sourceSignalId) {
+      return;
+    }
+    try {
+      const source = await this.prisma.scamSignal.findUnique({
+        where: { id: entry.sourceSignalId },
+      });
+      if (!source?.tenantId) {
+        return;
+      }
+      await this.webhooks.publish(eventType, source.tenantId, {
+        registryEntryId: entry.id,
+        indicatorType: entry.indicatorType,
+        indicatorValue: entry.indicatorValue,
+        publicStatus: entry.publicStatus,
+        publishedAt: entry.publishedAt,
+      });
+    } catch (err) {
+      this.logger.warn(`Webhook publish failed for registry entry ${entry.id}: ${String(err)}`);
+    }
   }
 
   async reject(admin: AuthenticatedUser, id: string, ctx: RequestContext = {}): Promise<RegistryEntry> {
