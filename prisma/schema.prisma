@@ -225,10 +225,11 @@ model Session {
   createdAt DateTime      @default(now())
   updatedAt DateTime      @updatedAt
 
-  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  tenant Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  device Device? @relation(fields: [deviceId], references: [id], onDelete: SetNull)
-  events SessionEvent[]
+  user                User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tenant              Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  device              Device? @relation(fields: [deviceId], references: [id], onDelete: SetNull)
+  events              SessionEvent[]
+  authenticityChecks  AuthenticityCheck[]
 
   @@index([userId])
   @@index([tenantId])
@@ -1195,4 +1196,49 @@ model FraudGraphEdge {
   @@index([targetNodeId])
   @@index([edgeType])
   @@map("fraud_graph_edges")
+}
+
+// ────────── Authenticity Verification Suite (Phase 6D) ──────────
+
+/// Which authenticity check produced the verdict (PDF §51 Brand Hierarchy
+/// "Authenticity Verification Suite").
+enum AuthenticityCheckType {
+  LIVE_FACE_SEAL
+  VOICE_MATCH_SEAL
+  SCENE_SEAL
+  CAM_VIGUARD
+  DUAL_AUTH
+  ANTI_FAKE_VIDEO
+}
+
+enum AuthenticityResult {
+  PASS
+  FAIL
+  INCONCLUSIVE
+}
+
+/// A verdict from one of the Authenticity Verification Suite engines attached
+/// to a monitored session (PDF §42 "Individual" / §43 "deepfake/caller
+/// authenticity integration"). MVP integration is contract-only — the
+/// external Python services slot in via AI_SERVICE_URL; an in-process stub
+/// satisfies the contract for dev / CI. Every check writes an AIDecision row
+/// alongside this verdict.
+model AuthenticityCheck {
+  id              String                @id @default(uuid()) @db.Uuid
+  sessionId       String                @db.Uuid
+  checkType       AuthenticityCheckType
+  result          AuthenticityResult
+  score           Int
+  modelVersion    String
+  source          AIDecisionSource      @default(STUB)
+  metadata        Json?
+  requestedByUserId String?             @db.Uuid
+  createdAt       DateTime              @default(now())
+
+  session Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
+  @@index([checkType])
+  @@index([result])
+  @@map("authenticity_checks")
 }

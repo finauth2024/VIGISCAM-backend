@@ -13,6 +13,7 @@ import { A1ScamShieldModule } from './modules/a1scamshield/a1scamshield.module';
 import { AiModule } from './modules/ai/ai.module';
 import { AlertsModule } from './modules/alerts/alerts.module';
 import { AuthModule } from './modules/auth/auth.module';
+import { AuthenticityModule } from './modules/authenticity/authenticity.module';
 import { ClusteringModule } from './modules/clustering/clustering.module';
 import { DetectionRulesModule } from './modules/detection-rules/detection-rules.module';
 import { DevicesModule } from './modules/devices/devices.module';
@@ -108,6 +109,7 @@ import { WebhooksModule } from './modules/webhooks/webhooks.module';
     WebhooksModule,
     AiModule,
     FraudGraphModule,
+    AuthenticityModule,
   ],
   providers: [
     // Order matters: rate-limit first, then authenticate, then authorize.
