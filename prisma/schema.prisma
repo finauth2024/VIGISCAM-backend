@@ -225,11 +225,15 @@ model Session {
   createdAt DateTime      @default(now())
   updatedAt DateTime      @updatedAt
 
-  user                User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  tenant              Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  device              Device? @relation(fields: [deviceId], references: [id], onDelete: SetNull)
-  events              SessionEvent[]
-  authenticityChecks  AuthenticityCheck[]
+  user                    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tenant                  Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  device                  Device? @relation(fields: [deviceId], references: [id], onDelete: SetNull)
+  events                  SessionEvent[]
+  authenticityChecks      AuthenticityCheck[]
+  fraudJourneyAssessments FraudJourneyAssessment[]
+  victimStateAssessments  VictimStateAssessment[]
+  predictedNextMoves      PredictedNextMove[]
+  riskFusionAssessments   RiskFusionAssessment[]
 
   @@index([userId])
   @@index([tenantId])
@@ -1241,4 +1245,108 @@ model AuthenticityCheck {
   @@index([checkType])
   @@index([result])
   @@map("authenticity_checks")
+}
+
+// ────────── Fraud Journey + VictimState + Risk Fusion v2 (Phase 6E) ──────────
+
+/// Where the user appears to be in the scam journey (PDF §44 fraud-journey).
+enum FraudJourneyStage {
+  INITIAL_CONTACT
+  TRUST_BUILDING
+  INFORMATION_GATHERING
+  URGENCY_INJECTION
+  PAYMENT_REQUEST
+  COMPLETED
+  INTERVENED
+}
+
+/// The user's inferred emotional state during a session (PDF §44 victim-state).
+enum VictimStateLabel {
+  CALM
+  CONFUSED
+  PRESSURED
+  TRUSTING
+  ALARMED
+  COMPROMISED
+}
+
+/// What the scammer is most likely to do next (PDF §44 predicted-next-move).
+enum PredictedAction {
+  REQUEST_PAYMENT
+  REQUEST_REMOTE_ACCESS
+  REQUEST_GIFT_CARD
+  REQUEST_PERSONAL_INFO
+  ESCALATE_URGENCY
+  DROP_OFF
+}
+
+model FraudJourneyAssessment {
+  id           String            @id @default(uuid()) @db.Uuid
+  sessionId    String            @db.Uuid
+  stage        FraudJourneyStage
+  confidence   Int
+  modelVersion String
+  source       AIDecisionSource  @default(STUB)
+  evidence     Json?
+  createdAt    DateTime          @default(now())
+
+  session Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
+  @@index([stage])
+  @@map("fraud_journey_assessments")
+}
+
+model VictimStateAssessment {
+  id           String           @id @default(uuid()) @db.Uuid
+  sessionId    String           @db.Uuid
+  state        VictimStateLabel
+  confidence   Int
+  modelVersion String
+  source       AIDecisionSource @default(STUB)
+  signals      Json?
+  createdAt    DateTime         @default(now())
+
+  session Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
+  @@index([state])
+  @@map("victim_state_assessments")
+}
+
+model PredictedNextMove {
+  id           String           @id @default(uuid()) @db.Uuid
+  sessionId    String           @db.Uuid
+  action       PredictedAction
+  confidence   Int
+  modelVersion String
+  source       AIDecisionSource @default(STUB)
+  rationale    String?
+  createdAt    DateTime         @default(now())
+
+  session Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
+  @@index([action])
+  @@map("predicted_next_moves")
+}
+
+/// The unified Risk Fusion v2 score (PDF §45 RiskFusionService). Combines the
+/// existing live risk score with fraud-journey stage, victim-state, predicted
+/// next move, and authenticity-failure penalty. The full breakdown is stored
+/// so the score remains explainable (PDF non-negotiable #8).
+model RiskFusionAssessment {
+  id           String   @id @default(uuid()) @db.Uuid
+  sessionId    String   @db.Uuid
+  fusedScore   Int
+  fusedLevel   RiskLevel
+  breakdown    Json
+  fusedVersion String
+  createdAt    DateTime @default(now())
+
+  session Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
+  @@index([fusedLevel])
+  @@map("risk_fusion_assessments")
 }
