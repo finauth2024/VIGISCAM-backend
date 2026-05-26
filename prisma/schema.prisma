@@ -605,8 +605,11 @@ model ScamSignal {
   createdAt              DateTime         @default(now())
   updatedAt              DateTime         @updatedAt
 
-  evidence ScamSignalEvidence[]
-  cluster  ScamCluster?         @relation(fields: [clusterId], references: [id], onDelete: SetNull)
+  evidence       ScamSignalEvidence[]
+  cluster        ScamCluster?         @relation(fields: [clusterId], references: [id], onDelete: SetNull)
+  embedding      SignalEmbedding?
+  similaritiesA  SignalSimilarity[]   @relation("SimilarityA")
+  similaritiesB  SignalSimilarity[]   @relation("SimilarityB")
 
   @@index([normalizedIndicator])
   @@index([indicatorType])
@@ -1080,4 +1083,46 @@ model AIDecision {
   @@index([modelVersion])
   @@index([createdAt])
   @@map("ai_decisions")
+}
+
+// ────────── Vector embeddings + similarity (Phase 6B) ──────────
+
+/// A signal's text embedding (PDF §32 "embeddings-based similarity"). MVP
+/// storage is a Postgres `real[]` (Prisma Float[]) — fine for thousands of
+/// signals; a pgvector / external vector DB swap is a production hardening
+/// when the corpus scales.
+model SignalEmbedding {
+  id           String           @id @default(uuid()) @db.Uuid
+  signalId     String           @unique @db.Uuid
+  modelVersion String
+  source       AIDecisionSource @default(STUB)
+  vector       Float[]
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  signal ScamSignal @relation(fields: [signalId], references: [id], onDelete: Cascade)
+
+  @@index([modelVersion])
+  @@map("signal_embeddings")
+}
+
+/// A symmetric similarity link between two signals at a given model version.
+/// Always stored with `signalAId < signalBId` lexicographically so each pair
+/// is canonical and `(signalAId, signalBId, modelVersion)` can be unique.
+model SignalSimilarity {
+  id           String   @id @default(uuid()) @db.Uuid
+  signalAId    String   @db.Uuid
+  signalBId    String   @db.Uuid
+  score        Float
+  modelVersion String
+  createdAt    DateTime @default(now())
+
+  signalA ScamSignal @relation("SimilarityA", fields: [signalAId], references: [id], onDelete: Cascade)
+  signalB ScamSignal @relation("SimilarityB", fields: [signalBId], references: [id], onDelete: Cascade)
+
+  @@unique([signalAId, signalBId, modelVersion])
+  @@index([signalAId])
+  @@index([signalBId])
+  @@index([score])
+  @@map("signal_similarities")
 }

@@ -3,6 +3,7 @@ import { ScamSignal, ScamSignalStatus, SignalSourceType, TenantType } from '@pri
 import { RequestContext } from '../../common/auth/auth.types';
 import { PartnerPrincipal } from '../../common/auth/partner.types';
 import { PrismaService } from '../../common/prisma/prisma.service';
+import { EmbeddingService } from '../ai/embedding.service';
 import { NlpClassifierService } from '../ai/nlp-classifier.service';
 import { ClusterService } from '../clustering/cluster.service';
 import { EvidenceService } from '../evidence-vault/evidence.service';
@@ -61,6 +62,7 @@ export class ScamSignalsService {
     private readonly evidence: EvidenceService,
     private readonly cluster: ClusterService,
     private readonly nlp: NlpClassifierService,
+    private readonly embeddings: EmbeddingService,
   ) {}
 
   /** Public intake — anonymous, USER_REPORT reliability profile. */
@@ -266,6 +268,15 @@ export class ScamSignalsService {
         );
       } catch (err) {
         this.logger.warn(`NLP classification failed for signal ${signal.id}: ${String(err)}`);
+      }
+
+      // Embed for similarity-based clustering (PDF §32 advanced version).
+      // Best-effort; the in-memory signal's embedding relation is not
+      // mutated — the link lives on the SignalEmbedding row.
+      try {
+        await this.embeddings.embedSignal(signal, enrichmentText);
+      } catch (err) {
+        this.logger.warn(`Embedding failed for signal ${signal.id}: ${String(err)}`);
       }
     }
 
