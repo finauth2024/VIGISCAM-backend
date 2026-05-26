@@ -18,6 +18,7 @@ import { DetectionRulesModule } from './modules/detection-rules/detection-rules.
 import { DevicesModule } from './modules/devices/devices.module';
 import { EvidenceModule } from './modules/evidence-vault/evidence.module';
 import { FamiliesModule } from './modules/families/families.module';
+import { FraudGraphModule } from './modules/fraud-graph/fraud-graph.module';
 import { FreezeGuardModule } from './modules/freezeguard/freezeguard.module';
 import { FreezeLockModule } from './modules/freezelock/freezelock.module';
 import { HealthModule } from './modules/health/health.module';
@@ -106,6 +107,7 @@ import { WebhooksModule } from './modules/webhooks/webhooks.module';
     PartnerIntelligenceModule,
     WebhooksModule,
     AiModule,
+    FraudGraphModule,
   ],
   providers: [
     // Order matters: rate-limit first, then authenticate, then authorize.

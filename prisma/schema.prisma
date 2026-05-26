@@ -1126,3 +1126,73 @@ model SignalSimilarity {
   @@index([score])
   @@map("signal_similarities")
 }
+
+// ────────── Identity Collision Graph (Phase 6C) ──────────
+
+/// Kinds of node in the fraud network graph (PDF §32 advanced, Identity
+/// Collision Graph). MVP only materialises INDICATOR nodes from scam signals;
+/// CAMPAIGN / ACTOR remain in the enum for forward compatibility.
+enum FraudGraphNodeType {
+  INDICATOR
+  CAMPAIGN
+  ACTOR
+}
+
+/// Why two nodes are linked. MVP edge types are all symmetric, so each edge
+/// is stored once with `sourceNodeId < targetNodeId` lexicographically.
+enum FraudGraphEdgeType {
+  CO_OCCURRENCE_CLUSTER
+  SIMILAR_TEXT
+  SHARED_CATEGORY
+}
+
+/// A node in the Identity Collision Graph. Each unique
+/// (indicatorType, normalizedIndicator) pair becomes one node — repeated
+/// signals on the same indicator only update aggregates.
+model FraudGraphNode {
+  id                  String             @id @default(uuid()) @db.Uuid
+  nodeType            FraudGraphNodeType @default(INDICATOR)
+  indicatorType       IndicatorType?
+  normalizedIndicator String?
+  label               String
+  category            String?
+  signalCount         Int                @default(0)
+  riskScore           Int                @default(0)
+  firstSeen           DateTime           @default(now())
+  lastSeen            DateTime           @default(now())
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+
+  outgoingEdges FraudGraphEdge[] @relation("EdgeSource")
+  incomingEdges FraudGraphEdge[] @relation("EdgeTarget")
+
+  @@unique([indicatorType, normalizedIndicator])
+  @@index([nodeType])
+  @@index([category])
+  @@index([riskScore])
+  @@map("fraud_graph_nodes")
+}
+
+/// A weighted, symmetric edge between two graph nodes. Stored once per
+/// canonical pair `(source < target, edgeType)`.
+model FraudGraphEdge {
+  id            String             @id @default(uuid()) @db.Uuid
+  sourceNodeId  String             @db.Uuid
+  targetNodeId  String             @db.Uuid
+  edgeType      FraudGraphEdgeType
+  weight        Float              @default(1)
+  evidenceCount Int                @default(1)
+  firstSeen     DateTime           @default(now())
+  lastSeen      DateTime           @default(now())
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+
+  sourceNode FraudGraphNode @relation("EdgeSource", fields: [sourceNodeId], references: [id], onDelete: Cascade)
+  targetNode FraudGraphNode @relation("EdgeTarget", fields: [targetNodeId], references: [id], onDelete: Cascade)
+
+  @@unique([sourceNodeId, targetNodeId, edgeType])
+  @@index([sourceNodeId])
+  @@index([targetNodeId])
+  @@index([edgeType])
+  @@map("fraud_graph_edges")
+}

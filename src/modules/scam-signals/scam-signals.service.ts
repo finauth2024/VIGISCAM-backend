@@ -7,6 +7,7 @@ import { EmbeddingService } from '../ai/embedding.service';
 import { NlpClassifierService } from '../ai/nlp-classifier.service';
 import { ClusterService } from '../clustering/cluster.service';
 import { EvidenceService } from '../evidence-vault/evidence.service';
+import { FraudGraphService } from '../fraud-graph/fraud-graph.service';
 import { SubmitScamReportDto } from './dto/submit-scam-report.dto';
 import { normalizeIndicator } from './normalization';
 
@@ -63,6 +64,7 @@ export class ScamSignalsService {
     private readonly cluster: ClusterService,
     private readonly nlp: NlpClassifierService,
     private readonly embeddings: EmbeddingService,
+    private readonly graph: FraudGraphService,
   ) {}
 
   /** Public intake — anonymous, USER_REPORT reliability profile. */
@@ -278,6 +280,15 @@ export class ScamSignalsService {
       } catch (err) {
         this.logger.warn(`Embedding failed for signal ${signal.id}: ${String(err)}`);
       }
+    }
+
+    // Project the signal onto the Identity Collision Graph (Phase 6C, PDF
+    // §32). Runs after clustering + embedding so cluster + similarity edges
+    // can be materialised in one pass. Best-effort — never breaks intake.
+    try {
+      await this.graph.processSignal(signal);
+    } catch (err) {
+      this.logger.warn(`Fraud-graph processing failed for signal ${signal.id}: ${String(err)}`);
     }
 
     // High-risk signals are queued for internal review (PDF §16.1).
