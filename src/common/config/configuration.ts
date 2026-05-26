@@ -13,6 +13,8 @@ export interface AppConfiguration {
   swagger: { enabled: boolean };
   logLevel: string;
   throttle: { ttlMs: number; limit: number };
+  /** Optional. Base URL of the external Python AI service. If unset, in-process stubs are used. */
+  aiServiceUrl?: string;
 }
 
 export default (): AppConfiguration => ({
@@ -44,4 +46,5 @@ export default (): AppConfiguration => ({
     ttlMs: parseInt(process.env.THROTTLE_TTL_SECONDS ?? '60', 10) * 1000,
     limit: parseInt(process.env.THROTTLE_LIMIT ?? '120', 10),
   },
+  aiServiceUrl: process.env.AI_SERVICE_URL || undefined,
 });

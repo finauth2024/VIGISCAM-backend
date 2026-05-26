@@ -3,6 +3,7 @@ import { ScamSignal, ScamSignalStatus, SignalSourceType, TenantType } from '@pri
 import { RequestContext } from '../../common/auth/auth.types';
 import { PartnerPrincipal } from '../../common/auth/partner.types';
 import { PrismaService } from '../../common/prisma/prisma.service';
+import { NlpClassifierService } from '../ai/nlp-classifier.service';
 import { ClusterService } from '../clustering/cluster.service';
 import { EvidenceService } from '../evidence-vault/evidence.service';
 import { SubmitScamReportDto } from './dto/submit-scam-report.dto';
@@ -59,6 +60,7 @@ export class ScamSignalsService {
     private readonly prisma: PrismaService,
     private readonly evidence: EvidenceService,
     private readonly cluster: ClusterService,
+    private readonly nlp: NlpClassifierService,
   ) {}
 
   /** Public intake — anonymous, USER_REPORT reliability profile. */
@@ -244,6 +246,27 @@ export class ScamSignalsService {
       }
     } catch (err) {
       this.logger.warn(`Clustering failed for signal ${signal.id}: ${String(err)}`);
+    }
+
+    // NLP enrichment (PDF non-negotiable #13 — every AI decision is audited
+    // as an AIDecision row). Best-effort, stub-backed when no external AI
+    // service is configured. The verdict is recorded but does NOT auto-
+    // mutate the signal's category or status — that still requires reviewer
+    // action via the review queue.
+    const enrichmentText = [dto.description, dto.rawText].filter(Boolean).join('\n').trim();
+    if (enrichmentText) {
+      try {
+        await this.nlp.classify(
+          {
+            text: enrichmentText,
+            indicatorType: dto.indicatorType,
+            hintedCategory: dto.category ?? null,
+          },
+          { entityType: 'SCAM_SIGNAL', entityId: signal.id },
+        );
+      } catch (err) {
+        this.logger.warn(`NLP classification failed for signal ${signal.id}: ${String(err)}`);
+      }
     }
 
     // High-risk signals are queued for internal review (PDF §16.1).

@@ -10,6 +10,7 @@ import { RolesGuard } from './common/auth/roles.guard';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { PrismaModule } from './common/prisma/prisma.module';
 import { A1ScamShieldModule } from './modules/a1scamshield/a1scamshield.module';
+import { AiModule } from './modules/ai/ai.module';
 import { AlertsModule } from './modules/alerts/alerts.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { ClusteringModule } from './modules/clustering/clustering.module';
@@ -104,6 +105,7 @@ import { WebhooksModule } from './modules/webhooks/webhooks.module';
     PartnerKeysModule,
     PartnerIntelligenceModule,
     WebhooksModule,
+    AiModule,
   ],
   providers: [
     // Order matters: rate-limit first, then authenticate, then authorize.

@@ -1046,3 +1046,38 @@ model EvidenceExportBundle {
   @@index([status])
   @@map("evidence_export_bundles")
 }
+
+// ────────── AI decision audit trail (Phase 6A) ──────────
+
+/// Where the AI verdict actually came from.
+enum AIDecisionSource {
+  STUB
+  EXTERNAL
+}
+
+/// Every AI call writes one row here (PDF non-negotiable #13 "every AI
+/// decision must be versioned and traceable"). The input is captured as a
+/// SHA-256 digest (privacy + dedup) plus a truncated snippet for debugging;
+/// the output is captured verbatim along with the model version that produced
+/// it so verdicts remain reproducible and auditable.
+model AIDecision {
+  id           String           @id @default(uuid()) @db.Uuid
+  serviceKind  String
+  modelVersion String
+  source       AIDecisionSource @default(STUB)
+  entityType   String?
+  entityId     String?
+  inputDigest  String
+  inputSnippet String?
+  output       Json
+  confidence   Int?
+  durationMs   Int?
+  error        String?
+  createdAt    DateTime         @default(now())
+
+  @@index([serviceKind])
+  @@index([entityType, entityId])
+  @@index([modelVersion])
+  @@index([createdAt])
+  @@map("ai_decisions")
+}
