@@ -30,6 +30,7 @@ import { InternalAdminModule } from './modules/internal-admin/internal-admin.mod
 import { OsintModule } from './modules/osint/osint.module';
 import { PartnerIntelligenceModule } from './modules/partner-intelligence/partner-intelligence.module';
 import { PartnerKeysModule } from './modules/partner-keys/partner-keys.module';
+import { PublicAlertsModule } from './modules/public-alerts/public-alerts.module';
 import { RegistryModule } from './modules/registry/registry.module';
 import { ReviewQueueModule } from './modules/review-queue/review-queue.module';
 import { RiskFusionV2Module } from './modules/risk-fusion-v2/risk-fusion-v2.module';
@@ -118,6 +119,7 @@ import { WebhooksModule } from './modules/webhooks/webhooks.module';
     RiskFusionV2Module,
     OsintModule,
     AgencyFeedsModule,
+    PublicAlertsModule,
   ],
   providers: [
     // Order matters: rate-limit first, then authenticate, then authorize.

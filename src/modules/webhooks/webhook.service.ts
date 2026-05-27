@@ -177,6 +177,23 @@ export class WebhookService {
   // ─────────────── Publish + deliver ───────────────
 
   /**
+   * Broadcast an event to EVERY active subscription matching the type,
+   * regardless of tenant — used for public events like PUBLIC_ALERT_PUBLISHED
+   * (Phase 7F). Fire-and-forget per delivery.
+   */
+  async broadcastPublic(
+    eventType: WebhookEventType,
+    data: Record<string, unknown>,
+  ): Promise<void> {
+    const subs = await this.prisma.webhookSubscription.findMany({
+      where: { status: 'ACTIVE', eventTypes: { has: eventType } },
+    });
+    for (const sub of subs) {
+      void this.deliver(sub, eventType, data);
+    }
+  }
+
+  /**
    * Publish an event to every matching ACTIVE subscription for this tenant.
    * Fire-and-forget per delivery — never blocks or fails the caller.
    * No-op for events that have no owning tenant.

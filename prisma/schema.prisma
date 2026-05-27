@@ -987,10 +987,13 @@ model PartnerApiKeyUsage {
 // ────────── Outbound webhooks — partner notifications (Phase 5D) ──────────
 
 /// Event types that VIGISCAM delivers to partner-tenant webhooks.
+/// PUBLIC_ALERT_PUBLISHED (Phase 7F) broadcasts a new public alert to every
+/// subscribed tenant; client filters by region.
 enum WebhookEventType {
   SIGNAL_VERIFIED
   REGISTRY_PUBLISHED
   REGISTRY_UNPUBLISHED
+  PUBLIC_ALERT_PUBLISHED
 }
 
 enum WebhookSubscriptionStatus {
@@ -1494,4 +1497,49 @@ model TakedownProviderTemplate {
   @@unique([providerType, providerName])
   @@index([enabled])
   @@map("takedown_provider_templates")
+}
+
+// ────────── Regional public alert systems (Phase 7F) ──────────
+
+enum PublicAlertSeverity {
+  INFO
+  WARNING
+  CRITICAL
+}
+
+enum PublicAlertStatus {
+  DRAFT
+  PUBLISHED
+  EXPIRED
+  WITHDRAWN
+}
+
+/// A region-targeted public alert derived from verified registry intelligence
+/// (PDF §43 "regional public alert systems"). Always public-safe — body +
+/// title are vetted by the same safe-language guard as registry summaries
+/// (docs/04 §2). Lifecycle: DRAFT -> PUBLISHED -> EXPIRED/WITHDRAWN.
+model PublicAlert {
+  id                String              @id @default(uuid()) @db.Uuid
+  title             String
+  body              String
+  region            String
+  severity          PublicAlertSeverity @default(WARNING)
+  category          String?
+  /// Soft references to underlying verified registry entries — no FK so an
+  /// unpublish of a registry entry doesn't cascade-delete the alert record.
+  registryEntryIds  String[]            @db.Uuid
+  status            PublicAlertStatus   @default(DRAFT)
+  createdByUserId   String?             @db.Uuid
+  publishedByUserId String?             @db.Uuid
+  publishedAt       DateTime?
+  expiresAt         DateTime?
+  withdrawnAt       DateTime?
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  @@index([region])
+  @@index([status])
+  @@index([severity])
+  @@index([publishedAt])
+  @@map("public_alerts")
 }
