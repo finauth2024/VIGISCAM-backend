@@ -1,12 +1,15 @@
 import {
   Body,
   Controller,
+  DefaultValuePipe,
   Delete,
   Get,
   HttpCode,
   HttpStatus,
   Param,
+  ParseIntPipe,
   ParseUUIDPipe,
+  Patch,
   Post,
   Query,
   Req,
@@ -18,6 +21,7 @@ import { AuthenticatedUser } from '../../common/auth/auth.types';
 import { CurrentUser } from '../../common/auth/current-user.decorator';
 import { Roles } from '../../common/auth/roles.decorator';
 import { CreatePartnerKeyDto } from './dto/create-partner-key.dto';
+import { UpdatePartnerKeyPlanDto } from './dto/update-partner-key-plan.dto';
 import { PartnerKeyService } from './partner-key.service';
 
 /**
@@ -54,6 +58,7 @@ export class PartnerKeyController {
         label: result.record.label,
         keyPrefix: result.record.keyPrefix,
         scopes: result.record.scopes,
+        plan: result.record.plan,
         status: result.record.status,
         expiresAt: result.record.expiresAt,
         createdAt: result.record.createdAt,
@@ -66,6 +71,31 @@ export class PartnerKeyController {
   @ApiQuery({ name: 'tenantId', required: false, format: 'uuid' })
   list(@Query('tenantId') tenantId?: string) {
     return this.keys.listKeys(tenantId);
+  }
+
+  @Patch(':id/plan')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Update the commercial plan tier of an existing key' })
+  updatePlan(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdatePartnerKeyPlanDto,
+    @Req() req: Request,
+  ) {
+    return this.keys.updatePlan(user, id, dto.plan, {
+      ip: req.ip,
+      userAgent: req.headers['user-agent'],
+    });
+  }
+
+  @Get(':id/usage')
+  @ApiOperation({ summary: 'Daily request count history for one key' })
+  @ApiQuery({ name: 'limit', required: false, description: 'Max days (1-365, default 90)' })
+  usage(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query('limit', new DefaultValuePipe(90), ParseIntPipe) limit?: number,
+  ) {
+    return this.keys.listUsage(id, limit);
   }
 
   @Delete(':id')

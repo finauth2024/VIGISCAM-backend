@@ -3,7 +3,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { PartnerApiKey, TenantType } from '@prisma/client';
+import { PartnerApiKey, PartnerApiKeyPlan, TenantType } from '@prisma/client';
 import { createHash, randomBytes } from 'crypto';
 import { AuthenticatedUser, RequestContext } from '../../common/auth/auth.types';
 import { PrismaService } from '../../common/prisma/prisma.service';
@@ -63,6 +63,7 @@ export class PartnerKeyService {
         keyPrefix: prefix,
         label: dto.label,
         scopes: dto.scopes,
+        plan: dto.plan ?? 'FREE',
         expiresAt,
         createdByUserId: actor.userId,
       },
@@ -75,12 +76,64 @@ export class PartnerKeyService {
       entityType: 'PARTNER_API_KEY',
       entityId: record.id,
       eventType: 'PARTNER_KEY_ISSUED',
-      eventDescription: `Partner API key issued (${prefix}…) to ${tenant.name}`,
-      metadata: { tenantId: tenant.id, scopes: record.scopes, keyPrefix: prefix },
+      eventDescription: `Partner API key issued (${prefix}…) to ${tenant.name} on ${record.plan} plan`,
+      metadata: {
+        tenantId: tenant.id,
+        scopes: record.scopes,
+        plan: record.plan,
+        keyPrefix: prefix,
+      },
       ipAddress: ctx.ip ?? null,
     });
 
     return { rawKey: raw, record };
+  }
+
+  /** Update an existing key's plan tier (Phase 7E). */
+  async updatePlan(
+    actor: AuthenticatedUser,
+    id: string,
+    plan: PartnerApiKeyPlan,
+    ctx: RequestContext = {},
+  ) {
+    const key = await this.prisma.partnerApiKey.findUnique({ where: { id } });
+    if (!key) {
+      throw new NotFoundException('Partner API key not found');
+    }
+    if (key.plan === plan) {
+      return this.prisma.partnerApiKey.findUnique({
+        where: { id },
+        select: this.safeSelect,
+      });
+    }
+    const previous = key.plan;
+    const updated = await this.prisma.partnerApiKey.update({
+      where: { id },
+      data: { plan },
+      select: this.safeSelect,
+    });
+    await this.evidence.append({
+      tenantId: key.tenantId,
+      actorId: actor.userId,
+      actorType: 'ADMIN',
+      entityType: 'PARTNER_API_KEY',
+      entityId: key.id,
+      eventType: 'PARTNER_KEY_PLAN_CHANGED',
+      eventDescription: `Partner API key plan changed ${previous} -> ${plan} (${key.keyPrefix}…)`,
+      metadata: { tenantId: key.tenantId, keyPrefix: key.keyPrefix, from: previous, to: plan },
+      ipAddress: ctx.ip ?? null,
+    });
+    return updated;
+  }
+
+  /** Daily usage history for one key (Phase 7E observability). */
+  listUsage(keyId: string, limit = 90) {
+    return this.prisma.partnerApiKeyUsage.findMany({
+      where: { keyId },
+      orderBy: { date: 'desc' },
+      take: Math.min(Math.max(limit, 1), 365),
+      select: { date: true, requestCount: true, updatedAt: true },
+    });
   }
 
   /**
@@ -94,6 +147,7 @@ export class PartnerKeyService {
     keyPrefix: true,
     label: true,
     scopes: true,
+    plan: true,
     status: true,
     createdByUserId: true,
     expiresAt: true,

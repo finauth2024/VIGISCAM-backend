@@ -929,6 +929,13 @@ enum PartnerApiKeyStatus {
   EXPIRED
 }
 
+/// Commercial plan tier (Phase 7E). Controls daily call quota; default FREE.
+enum PartnerApiKeyPlan {
+  FREE
+  PRO
+  ENTERPRISE
+}
+
 /// A long-lived credential a partner tenant (bank / platform / agency /
 /// enterprise) uses to authenticate machine-to-machine calls into VIGISCAM.
 /// The raw key is shown exactly ONCE at issuance and never stored — only its
@@ -941,6 +948,7 @@ model PartnerApiKey {
   keyPrefix       String
   label           String
   scopes          PartnerApiKeyScope[]
+  plan            PartnerApiKeyPlan     @default(FREE)
   status          PartnerApiKeyStatus   @default(ACTIVE)
   createdByUserId String?               @db.Uuid
   expiresAt       DateTime?
@@ -949,11 +957,31 @@ model PartnerApiKey {
   createdAt       DateTime              @default(now())
   updatedAt       DateTime              @updatedAt
 
-  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  usage  PartnerApiKeyUsage[]
 
   @@index([tenantId])
   @@index([status])
   @@map("partner_api_keys")
+}
+
+/// Daily request count per partner API key (Phase 7E). The ApiKeyGuard
+/// upserts a row keyed on (keyId, date) per authenticated request and rejects
+/// further calls when the day's count hits the plan limit.
+model PartnerApiKeyUsage {
+  id           String   @id @default(uuid()) @db.Uuid
+  keyId        String   @db.Uuid
+  date         DateTime @db.Date
+  requestCount Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  key PartnerApiKey @relation(fields: [keyId], references: [id], onDelete: Cascade)
+
+  @@unique([keyId, date])
+  @@index([keyId])
+  @@index([date])
+  @@map("partner_api_key_usage")
 }
 
 // ────────── Outbound webhooks — partner notifications (Phase 5D) ──────────

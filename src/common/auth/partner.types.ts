@@ -1,4 +1,4 @@
-import { PartnerApiKeyScope } from '@prisma/client';
+import { PartnerApiKeyPlan, PartnerApiKeyScope } from '@prisma/client';
 
 /**
  * The partner principal attached to `request.partner` after a successful
@@ -10,4 +10,5 @@ export interface PartnerPrincipal {
   tenantId: string;
   keyPrefix: string;
   scopes: PartnerApiKeyScope[];
+  plan: PartnerApiKeyPlan;
 }

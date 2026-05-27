@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { PartnerApiKeyScope } from '@prisma/client';
+import { PartnerApiKeyPlan, PartnerApiKeyScope } from '@prisma/client';
 import {
   ArrayMinSize,
   ArrayNotEmpty,
@@ -34,6 +34,15 @@ export class CreatePartnerKeyDto {
   @ArrayMinSize(1)
   @IsEnum(PartnerApiKeyScope, { each: true })
   scopes!: PartnerApiKeyScope[];
+
+  @ApiProperty({
+    enum: PartnerApiKeyPlan,
+    required: false,
+    description: 'Commercial plan tier (Phase 7E). Defaults to FREE.',
+  })
+  @IsOptional()
+  @IsEnum(PartnerApiKeyPlan)
+  plan?: PartnerApiKeyPlan;
 
   @ApiProperty({
     required: false,
