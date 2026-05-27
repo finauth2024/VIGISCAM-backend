@@ -153,7 +153,12 @@ export class TakedownAutomationService {
 
   private matches(pattern: string, value: string): boolean {
     try {
-      return new RegExp(pattern).test(value);
+      // JavaScript's RegExp doesn't support the PCRE inline flag `(?i)` —
+      // strip it if present and always run case-insensitive. This keeps
+      // existing seeded templates ("(?i)godaddy") working without a data
+      // migration.
+      const cleaned = pattern.replace(/^\(\?i\)/, '');
+      return new RegExp(cleaned, 'i').test(value);
     } catch (err) {
       this.logger.warn(`Invalid template regex "${pattern}": ${String(err)}`);
       return false;
