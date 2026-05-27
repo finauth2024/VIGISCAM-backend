@@ -12,6 +12,7 @@ import { EvidenceService } from '../evidence-vault/evidence.service';
 import { normalizeIndicator } from '../scam-signals/normalization';
 import { WebhookService } from '../webhooks/webhook.service';
 import { CacheService } from '../../common/cache/cache.service';
+import { TakedownAutomationService } from '../takedown/takedown-automation.service';
 import { CreateRegistryCandidateDto } from './dto/create-registry-candidate.dto';
 import { PublicRegistryEntry, toPublicRegistryEntry } from './registry.mapper';
 import { assertPublicSafeLanguage } from './safe-language';
@@ -55,6 +56,7 @@ export class RegistryService {
     private readonly evidence: EvidenceService,
     private readonly webhooks: WebhookService,
     private readonly cache: CacheService,
+    private readonly takedownAutomation: TakedownAutomationService,
   ) {}
 
   // ─────────────────── Public search (Phase 2D) ───────────────────
@@ -243,6 +245,14 @@ export class RegistryService {
     await this.logEvidence(updated, admin, 'ADMIN', 'REGISTRY_PUBLISHED', 'Registry entry published to the public registry', ctx);
     this.invalidateSearchCache();
     await this.notifyPartner(updated, 'REGISTRY_PUBLISHED');
+
+    // Auto-draft a takedown request based on OSINT data + provider templates
+    // (Phase 7D). Best-effort — never breaks publish.
+    try {
+      await this.takedownAutomation.tryAutomate(updated);
+    } catch (err) {
+      this.logger.warn(`Takedown automation failed for entry ${updated.id}: ${String(err)}`);
+    }
     return updated;
   }
 

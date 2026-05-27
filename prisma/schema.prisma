@@ -1440,3 +1440,30 @@ model AgencyFeedDelivery {
   @@index([tenantId])
   @@map("agency_feed_deliveries")
 }
+
+// ────────── Advanced takedown automation (Phase 7D) ──────────
+
+/// A reusable template mapping a provider (by OSINT-detected name) to its
+/// abuse-handling contact + a request-details boilerplate (PDF §43 "advanced
+/// takedown automation"). When a registry entry is PUBLISHED the automation
+/// looks up matching enabled templates and auto-drafts a TakedownRequest —
+/// always as DRAFT, so a reviewer still inspects and submits.
+model TakedownProviderTemplate {
+  id              String               @id @default(uuid()) @db.Uuid
+  providerType    TakedownProviderType
+  providerName    String
+  /// Case-insensitive regex matched against OSINT-returned registrar / host name.
+  detectorPattern String
+  abuseContact    String?
+  /// Boilerplate with `{indicator}`, `{category}`, `{summary}` placeholders.
+  detailsTemplate String
+  enabled         Boolean              @default(true)
+  priority        Int                  @default(0)
+  createdByUserId String?              @db.Uuid
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+
+  @@unique([providerType, providerName])
+  @@index([enabled])
+  @@map("takedown_provider_templates")
+}
