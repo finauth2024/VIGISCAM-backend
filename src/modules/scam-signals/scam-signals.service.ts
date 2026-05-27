@@ -8,6 +8,7 @@ import { NlpClassifierService } from '../ai/nlp-classifier.service';
 import { ClusterService } from '../clustering/cluster.service';
 import { EvidenceService } from '../evidence-vault/evidence.service';
 import { FraudGraphService } from '../fraud-graph/fraud-graph.service';
+import { OsintService } from '../osint/osint.service';
 import { SubmitScamReportDto } from './dto/submit-scam-report.dto';
 import { normalizeIndicator } from './normalization';
 
@@ -65,6 +66,7 @@ export class ScamSignalsService {
     private readonly nlp: NlpClassifierService,
     private readonly embeddings: EmbeddingService,
     private readonly graph: FraudGraphService,
+    private readonly osint: OsintService,
   ) {}
 
   /** Public intake — anonymous, USER_REPORT reliability profile. */
@@ -289,6 +291,14 @@ export class ScamSignalsService {
       await this.graph.processSignal(signal);
     } catch (err) {
       this.logger.warn(`Fraud-graph processing failed for signal ${signal.id}: ${String(err)}`);
+    }
+
+    // Safe OSINT enrichment (Phase 6F). No-op for indicator types with no
+    // public OSINT (phrases, etc.). Best-effort — never breaks intake.
+    try {
+      await this.osint.enrichSignal(signal);
+    } catch (err) {
+      this.logger.warn(`OSINT enrichment failed for signal ${signal.id}: ${String(err)}`);
     }
 
     // High-risk signals are queued for internal review (PDF §16.1).

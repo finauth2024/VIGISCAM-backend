@@ -610,11 +610,12 @@ model ScamSignal {
   createdAt              DateTime         @default(now())
   updatedAt              DateTime         @updatedAt
 
-  evidence       ScamSignalEvidence[]
-  cluster        ScamCluster?         @relation(fields: [clusterId], references: [id], onDelete: SetNull)
-  embedding      SignalEmbedding?
-  similaritiesA  SignalSimilarity[]   @relation("SimilarityA")
-  similaritiesB  SignalSimilarity[]   @relation("SimilarityB")
+  evidence          ScamSignalEvidence[]
+  cluster           ScamCluster?         @relation(fields: [clusterId], references: [id], onDelete: SetNull)
+  embedding         SignalEmbedding?
+  similaritiesA     SignalSimilarity[]   @relation("SimilarityA")
+  similaritiesB     SignalSimilarity[]   @relation("SimilarityB")
+  osintEnrichments  OsintEnrichment[]
 
   @@index([normalizedIndicator])
   @@index([indicatorType])
@@ -1349,4 +1350,31 @@ model RiskFusionAssessment {
   @@index([sessionId])
   @@index([fusedLevel])
   @@map("risk_fusion_assessments")
+}
+
+// ────────── Safe OSINT enrichment (Phase 6F) ──────────
+
+/// Public-source OSINT enrichments attached to an indicator or signal
+/// (PDF §44 osint, docs/02 Phase 6 "safe OSINT enrichment"). "Safe" means
+/// public-only data — never PII. The actual upstream is contract-only;
+/// AI_SERVICE_URL swaps in real providers, an in-process stub satisfies the
+/// contract for dev / CI.
+model OsintEnrichment {
+  id                  String           @id @default(uuid()) @db.Uuid
+  signalId            String?          @db.Uuid
+  indicatorType       IndicatorType
+  normalizedIndicator String
+  provider            String
+  modelVersion        String
+  source              AIDecisionSource @default(STUB)
+  data                Json
+  riskHints           String[]
+  createdAt           DateTime         @default(now())
+
+  signal ScamSignal? @relation(fields: [signalId], references: [id], onDelete: SetNull)
+
+  @@unique([indicatorType, normalizedIndicator, provider])
+  @@index([signalId])
+  @@index([indicatorType, normalizedIndicator])
+  @@map("osint_enrichments")
 }

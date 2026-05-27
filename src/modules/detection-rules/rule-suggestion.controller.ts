@@ -31,4 +31,17 @@ export class RuleSuggestionController {
       userAgent: req.headers['user-agent'],
     });
   }
+
+  @Post('generate-phrase-rules')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary:
+      'Phase 6F — generate DRAFT PHRASE_MATCH suggestions from NLP-classified verified signals. Always DRAFT — never auto-activates.',
+  })
+  generatePhraseRules(@CurrentUser() user: AuthenticatedUser, @Req() req: Request) {
+    return this.suggestions.generatePhraseRuleSuggestions(user, {
+      ip: req.ip,
+      userAgent: req.headers['user-agent'],
+    });
+  }
 }

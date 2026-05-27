@@ -25,6 +25,7 @@ import { FreezeLockModule } from './modules/freezelock/freezelock.module';
 import { HealthModule } from './modules/health/health.module';
 import { IntelligenceMetricsModule } from './modules/intelligence-metrics/intelligence-metrics.module';
 import { InternalAdminModule } from './modules/internal-admin/internal-admin.module';
+import { OsintModule } from './modules/osint/osint.module';
 import { PartnerIntelligenceModule } from './modules/partner-intelligence/partner-intelligence.module';
 import { PartnerKeysModule } from './modules/partner-keys/partner-keys.module';
 import { RegistryModule } from './modules/registry/registry.module';
@@ -112,6 +113,7 @@ import { WebhooksModule } from './modules/webhooks/webhooks.module';
     FraudGraphModule,
     AuthenticityModule,
     RiskFusionV2Module,
+    OsintModule,
   ],
   providers: [
     // Order matters: rate-limit first, then authenticate, then authorize.
