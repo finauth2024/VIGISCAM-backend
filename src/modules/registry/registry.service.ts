@@ -11,6 +11,7 @@ import { PrismaService } from '../../common/prisma/prisma.service';
 import { EvidenceService } from '../evidence-vault/evidence.service';
 import { normalizeIndicator } from '../scam-signals/normalization';
 import { WebhookService } from '../webhooks/webhook.service';
+import { CacheService } from '../../common/cache/cache.service';
 import { CreateRegistryCandidateDto } from './dto/create-registry-candidate.dto';
 import { PublicRegistryEntry, toPublicRegistryEntry } from './registry.mapper';
 import { assertPublicSafeLanguage } from './safe-language';
@@ -19,7 +20,24 @@ export interface RegistrySearchQuery {
   q?: string;
   type?: string;
   category?: string;
+  page?: number;
+  limit?: number;
 }
+
+export interface RegistrySearchResult {
+  items: PublicRegistryEntry[];
+  page: number;
+  limit: number;
+  hasMore: boolean;
+}
+
+/** Cap on page size — protects the cache and the public endpoint from abuse. */
+const MAX_PAGE_SIZE = 100;
+const DEFAULT_PAGE_SIZE = 50;
+/** 60 s — short enough that a publish/unpublish becomes visible quickly,
+ *  long enough to absorb the bulk of repeated public read traffic. */
+const SEARCH_CACHE_TTL_MS = 60_000;
+const SEARCH_CACHE_PREFIX = 'registry:search:';
 
 /**
  * The Scam Intelligence Registry (PDF §26, §27). Governs the lifecycle that
@@ -36,11 +54,22 @@ export class RegistryService {
     private readonly prisma: PrismaService,
     private readonly evidence: EvidenceService,
     private readonly webhooks: WebhookService,
+    private readonly cache: CacheService,
   ) {}
 
   // ─────────────────── Public search (Phase 2D) ───────────────────
 
-  async search(query: RegistrySearchQuery): Promise<PublicRegistryEntry[]> {
+  async search(query: RegistrySearchQuery): Promise<RegistrySearchResult> {
+    const page = Math.max(1, Math.floor(query.page ?? 1));
+    const limit = Math.min(MAX_PAGE_SIZE, Math.max(1, Math.floor(query.limit ?? DEFAULT_PAGE_SIZE)));
+
+    // Cache key includes every dimension that changes the result.
+    const cacheKey = this.buildCacheKey({ ...query, page, limit });
+    const cached = this.cache.get<RegistrySearchResult>(cacheKey);
+    if (cached) {
+      return cached;
+    }
+
     // PUBLISHED is the only publicly visible status — non-negotiable.
     const where: Prisma.RegistryEntryWhereInput = { status: 'PUBLISHED' };
 
@@ -64,12 +93,36 @@ export class RegistryService {
       }
     }
 
-    const entries = await this.prisma.registryEntry.findMany({
+    // Fetch one extra row to know whether a next page exists, without a
+    // separate count(*) — count is expensive at global scale.
+    const rows = await this.prisma.registryEntry.findMany({
       where,
       orderBy: { lastSeen: 'desc' },
-      take: 50,
+      skip: (page - 1) * limit,
+      take: limit + 1,
     });
-    return entries.map(toPublicRegistryEntry);
+    const hasMore = rows.length > limit;
+    const items = (hasMore ? rows.slice(0, limit) : rows).map(toPublicRegistryEntry);
+    const result: RegistrySearchResult = { items, page, limit, hasMore };
+
+    this.cache.set(cacheKey, result, SEARCH_CACHE_TTL_MS);
+    return result;
+  }
+
+  /** Invalidate every cached search response — call on publish/unpublish. */
+  invalidateSearchCache(): number {
+    return this.cache.deletePrefix(SEARCH_CACHE_PREFIX);
+  }
+
+  private buildCacheKey(q: RegistrySearchQuery & { page: number; limit: number }): string {
+    return [
+      SEARCH_CACHE_PREFIX,
+      `q=${(q.q ?? '').trim().toLowerCase()}`,
+      `t=${q.type ?? ''}`,
+      `c=${q.category ?? ''}`,
+      `p=${q.page}`,
+      `l=${q.limit}`,
+    ].join('|');
   }
 
   private parseType(raw?: string): IndicatorType | undefined {
@@ -188,6 +241,7 @@ export class RegistryService {
       data: { status: 'PUBLISHED', publishedAt: new Date() },
     });
     await this.logEvidence(updated, admin, 'ADMIN', 'REGISTRY_PUBLISHED', 'Registry entry published to the public registry', ctx);
+    this.invalidateSearchCache();
     await this.notifyPartner(updated, 'REGISTRY_PUBLISHED');
     return updated;
   }
@@ -200,6 +254,7 @@ export class RegistryService {
       data: { status: 'APPROVED_PUBLIC_SAFE', publishedAt: null },
     });
     await this.logEvidence(updated, admin, 'ADMIN', 'REGISTRY_UNPUBLISHED', 'Registry entry removed from the public registry', ctx);
+    this.invalidateSearchCache();
     await this.notifyPartner(updated, 'REGISTRY_UNPUBLISHED');
     return updated;
   }

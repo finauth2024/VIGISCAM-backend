@@ -7,6 +7,7 @@ import configuration from './common/config/configuration';
 import { validateEnv } from './common/config/env.validation';
 import { JwtAuthGuard } from './common/auth/jwt-auth.guard';
 import { RolesGuard } from './common/auth/roles.guard';
+import { CacheModule } from './common/cache/cache.module';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { PrismaModule } from './common/prisma/prisma.module';
 import { A1ScamShieldModule } from './modules/a1scamshield/a1scamshield.module';
@@ -86,6 +87,7 @@ import { WebhooksModule } from './modules/webhooks/webhooks.module';
       ],
     }),
     PrismaModule,
+    CacheModule,
     EvidenceModule,
     AlertsModule,
     HealthModule,
