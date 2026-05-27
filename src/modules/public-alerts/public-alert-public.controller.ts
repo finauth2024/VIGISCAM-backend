@@ -18,9 +18,12 @@ import { PublicAlertService } from './public-alert.service';
  * authentication; PUBLISHED alerts only; filterable by region and minimum
  * severity. Mirrors the 7A registry-search HTTP semantics — ETag + 304 +
  * Cache-Control for CDN/global-scale friendliness.
+ *
+ * Path is `public-alerts` (not `alerts`) to avoid colliding with the
+ * Phase 1D in-app AlertsController, which owns `/alerts` and requires JWT.
  */
 @ApiTags('Public Alerts')
-@Controller({ path: 'alerts', version: '1' })
+@Controller({ path: 'public-alerts', version: '1' })
 export class PublicAlertPublicController {
   constructor(private readonly alerts: PublicAlertService) {}
 
