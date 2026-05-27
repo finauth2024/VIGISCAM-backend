@@ -1,4 +1,4 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import {
   FraudGraphEdgeType,
   FraudGraphNode,
@@ -222,5 +222,84 @@ export class FraudGraphService {
         };
       })
       .filter((r): r is NonNullable<typeof r> => r !== null);
+  }
+
+  // ─────────────── Phase 7B — campaign-level graph ───────────────
+
+  /** Create a new CAMPAIGN-type node. Campaigns have no indicator pair. */
+  createCampaign(input: { label: string; category?: string }): Promise<FraudGraphNode> {
+    return this.prisma.fraudGraphNode.create({
+      data: {
+        nodeType: FraudGraphNodeType.CAMPAIGN,
+        label: input.label,
+        category: input.category,
+        // No indicatorType / normalizedIndicator on campaigns.
+      },
+    });
+  }
+
+  listCampaigns(limit = 100): Promise<FraudGraphNode[]> {
+    return this.prisma.fraudGraphNode.findMany({
+      where: { nodeType: FraudGraphNodeType.CAMPAIGN },
+      orderBy: { updatedAt: 'desc' },
+      take: Math.min(Math.max(limit, 1), 500),
+    });
+  }
+
+  /** Get a campaign with its indicator members projected. */
+  async getCampaignWithMembers(id: string) {
+    const campaign = await this.prisma.fraudGraphNode.findUnique({ where: { id } });
+    if (!campaign || campaign.nodeType !== FraudGraphNodeType.CAMPAIGN) {
+      throw new NotFoundException('Campaign not found');
+    }
+    const edges = await this.prisma.fraudGraphEdge.findMany({
+      where: {
+        edgeType: 'CAMPAIGN_MEMBERSHIP',
+        OR: [{ sourceNodeId: id }, { targetNodeId: id }],
+      },
+      orderBy: { weight: 'desc' },
+    });
+    const memberIds = edges.map((e) => (e.sourceNodeId === id ? e.targetNodeId : e.sourceNodeId));
+    const members = memberIds.length
+      ? await this.prisma.fraudGraphNode.findMany({ where: { id: { in: memberIds } } })
+      : [];
+    return { campaign, members };
+  }
+
+  /** Attach an INDICATOR node as a member of a CAMPAIGN. */
+  async addCampaignMember(campaignId: string, nodeId: string): Promise<FraudGraphNode> {
+    if (campaignId === nodeId) {
+      throw new BadRequestException('A campaign cannot reference itself');
+    }
+    const campaign = await this.prisma.fraudGraphNode.findUnique({ where: { id: campaignId } });
+    if (!campaign || campaign.nodeType !== FraudGraphNodeType.CAMPAIGN) {
+      throw new NotFoundException('Campaign not found');
+    }
+    const indicator = await this.prisma.fraudGraphNode.findUnique({ where: { id: nodeId } });
+    if (!indicator) {
+      throw new NotFoundException('Indicator node not found');
+    }
+    if (indicator.nodeType !== FraudGraphNodeType.INDICATOR) {
+      throw new BadRequestException('Campaign members must be INDICATOR nodes');
+    }
+    await this.upsertEdge(campaignId, nodeId, 'CAMPAIGN_MEMBERSHIP', 1);
+    return indicator;
+  }
+
+  /** Remove a member from a campaign (idempotent — no error if not a member). */
+  async removeCampaignMember(campaignId: string, nodeId: string): Promise<void> {
+    const [sourceNodeId, targetNodeId] =
+      campaignId < nodeId ? [campaignId, nodeId] : [nodeId, campaignId];
+    await this.prisma.fraudGraphEdge
+      .delete({
+        where: {
+          sourceNodeId_targetNodeId_edgeType: {
+            sourceNodeId,
+            targetNodeId,
+            edgeType: 'CAMPAIGN_MEMBERSHIP',
+          },
+        },
+      })
+      .catch(() => undefined); // P2025 → already absent → idempotent
   }
 }

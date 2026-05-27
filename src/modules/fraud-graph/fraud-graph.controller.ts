@@ -1,15 +1,22 @@
 import {
+  Body,
   Controller,
   DefaultValuePipe,
+  Delete,
   Get,
+  HttpCode,
+  HttpStatus,
   Param,
   ParseIntPipe,
   ParseUUIDPipe,
+  Post,
   Query,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { MembershipRole } from '@prisma/client';
 import { Roles } from '../../common/auth/roles.decorator';
+import { AddCampaignMemberDto } from './dto/add-campaign-member.dto';
+import { CreateCampaignDto } from './dto/create-campaign.dto';
 import { FraudGraphService } from './fraud-graph.service';
 
 /**
@@ -51,5 +58,44 @@ export class FraudGraphController {
     @Query('limit', new DefaultValuePipe(50), ParseIntPipe) limit?: number,
   ) {
     return this.graph.getNeighbors(id, limit);
+  }
+
+  // ─────── Phase 7B — campaign-level graph ───────
+
+  @Get('campaigns')
+  @ApiOperation({ summary: 'List scam campaigns (CAMPAIGN nodes)' })
+  @ApiQuery({ name: 'limit', required: false })
+  listCampaigns(@Query('limit', new DefaultValuePipe(100), ParseIntPipe) limit?: number) {
+    return this.graph.listCampaigns(limit);
+  }
+
+  @Post('campaigns')
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({ summary: 'Create a new scam campaign' })
+  createCampaign(@Body() dto: CreateCampaignDto) {
+    return this.graph.createCampaign(dto);
+  }
+
+  @Get('campaigns/:id')
+  @ApiOperation({ summary: 'Get one campaign with its indicator-node members' })
+  getCampaign(@Param('id', ParseUUIDPipe) id: string) {
+    return this.graph.getCampaignWithMembers(id);
+  }
+
+  @Post('campaigns/:id/members')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Attach an INDICATOR node as a member of this campaign' })
+  addMember(@Param('id', ParseUUIDPipe) id: string, @Body() dto: AddCampaignMemberDto) {
+    return this.graph.addCampaignMember(id, dto.nodeId);
+  }
+
+  @Delete('campaigns/:id/members/:nodeId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Remove a member from this campaign (idempotent)' })
+  async removeMember(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('nodeId', ParseUUIDPipe) nodeId: string,
+  ): Promise<void> {
+    await this.graph.removeCampaignMember(id, nodeId);
   }
 }

@@ -1146,10 +1146,12 @@ enum FraudGraphNodeType {
 
 /// Why two nodes are linked. MVP edge types are all symmetric, so each edge
 /// is stored once with `sourceNodeId < targetNodeId` lexicographically.
+/// CAMPAIGN_MEMBERSHIP (Phase 7B) links an INDICATOR node to a CAMPAIGN node.
 enum FraudGraphEdgeType {
   CO_OCCURRENCE_CLUSTER
   SIMILAR_TEXT
   SHARED_CATEGORY
+  CAMPAIGN_MEMBERSHIP
 }
 
 /// A node in the Identity Collision Graph. Each unique
