@@ -88,6 +88,7 @@ model Tenant {
   partnerApiKeys         PartnerApiKey[]
   webhookSubscriptions   WebhookSubscription[]
   evidenceExportBundles  EvidenceExportBundle[]
+  agencyFeeds            AgencyFeed[]
 
   @@index([type])
   @@map("tenants")
@@ -913,11 +914,13 @@ model DetectionRule {
 // ────────── Partner API keys — tenant-scoped auth (Phase 5A) ──────────
 
 /// Capabilities a partner API key can carry (PDF §39 enterprise API keys).
+/// AGENCY_FEED (Phase 7C) grants read access to the tenant's agency feeds.
 enum PartnerApiKeyScope {
   REPORT_SUBMIT
   READ_TENANT_INTEL
   EVIDENCE_EXPORT
   WEBHOOK_MANAGE
+  AGENCY_FEED
 }
 
 enum PartnerApiKeyStatus {
@@ -1379,4 +1382,61 @@ model OsintEnrichment {
   @@index([signalId])
   @@index([indicatorType, normalizedIndicator])
   @@map("osint_enrichments")
+}
+
+// ────────── Cross-border agency feeds (Phase 7C) ──────────
+
+enum AgencyFeedStatus {
+  ACTIVE
+  PAUSED
+  REVOKED
+}
+
+/// A cross-border agency intelligence feed (PDF §43 "cross-border agency
+/// feeds"; docs/02 Phase 7). Owned by an AGENCY-type tenant; consumed via a
+/// partner API key carrying the AGENCY_FEED scope. The feed lists PUBLISHED
+/// registry entries that match its filters (categories, indicator types).
+/// `region` is a label for the consuming jurisdiction and is recorded for
+/// audit / data-sharing-agreement traceability — relevance filtering on
+/// entry geography is a future enhancement.
+model AgencyFeed {
+  id              String           @id @default(uuid()) @db.Uuid
+  tenantId        String           @db.Uuid
+  name            String
+  region          String?
+  categories      String[]
+  indicatorTypes  IndicatorType[]
+  status          AgencyFeedStatus @default(ACTIVE)
+  createdByUserId String?          @db.Uuid
+  lastDeliveredAt DateTime?
+  revokedAt       DateTime?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  tenant     Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  deliveries AgencyFeedDelivery[]
+
+  @@index([tenantId])
+  @@index([status])
+  @@index([region])
+  @@map("agency_feeds")
+}
+
+/// One feed-consumption event — captured per fetch for the chain-of-custody
+/// audit required by cross-border data-sharing agreements (docs/04 LR-4).
+model AgencyFeedDelivery {
+  id               String    @id @default(uuid()) @db.Uuid
+  feedId           String    @db.Uuid
+  tenantId         String    @db.Uuid
+  requestedByKeyId String?   @db.Uuid
+  itemCount        Int
+  sinceCursor      DateTime?
+  untilCursor      DateTime
+  createdAt        DateTime  @default(now())
+
+  feed AgencyFeed @relation(fields: [feedId], references: [id], onDelete: Cascade)
+
+  @@index([feedId])
+  @@index([tenantId])
+  @@map("agency_feed_deliveries")
 }

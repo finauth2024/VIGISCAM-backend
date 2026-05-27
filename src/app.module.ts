@@ -11,6 +11,7 @@ import { CacheModule } from './common/cache/cache.module';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { PrismaModule } from './common/prisma/prisma.module';
 import { A1ScamShieldModule } from './modules/a1scamshield/a1scamshield.module';
+import { AgencyFeedsModule } from './modules/agency-feeds/agency-feeds.module';
 import { AiModule } from './modules/ai/ai.module';
 import { AlertsModule } from './modules/alerts/alerts.module';
 import { AuthModule } from './modules/auth/auth.module';
@@ -116,6 +117,7 @@ import { WebhooksModule } from './modules/webhooks/webhooks.module';
     AuthenticityModule,
     RiskFusionV2Module,
     OsintModule,
+    AgencyFeedsModule,
   ],
   providers: [
     // Order matters: rate-limit first, then authenticate, then authorize.
