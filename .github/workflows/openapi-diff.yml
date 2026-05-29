@@ -1,0 +1,73 @@
+name: OpenAPI schema diff
+
+# Compares the OpenAPI spec produced by this PR against the spec on main.
+# A breaking change blocks the PR unless the author adds the label
+# `openapi-breaking-change-approved`, which is reserved for an intentional
+# breaking-change PR.
+#
+# Why this matters: the typed SDK (src/generated/api-types.ts) and the
+# contract test suite (test/contract/**) both consume this spec. A silent
+# rename or removed enum value would break partners at runtime — this gate
+# turns that into a compile-time PR-blocking event.
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  diff:
+    name: Diff against main
+    runs-on: ubuntu-latest
+    env:
+      # Throwaway values — we never start a listener, only construct the spec.
+      JWT_SECRET: ci-spec-jwt-secret-not-a-real-secret
+      DATABASE_URL: postgresql://x:y@localhost:5432/x?schema=public
+      CORS_ORIGINS: http://localhost
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v4
+        with:
+          path: pr
+
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          path: base
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install oasdiff
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/Tufin/oasdiff/main/install.sh | sh
+          oasdiff --version
+
+      - name: Build PR spec
+        working-directory: pr
+        run: |
+          npm ci
+          npm run openapi:export
+          cp openapi.json ../pr-openapi.json
+
+      - name: Build base (main) spec
+        working-directory: base
+        run: |
+          npm ci
+          npm run openapi:export
+          cp openapi.json ../base-openapi.json
+
+      - name: Diff (human-readable, always shown)
+        run: |
+          oasdiff changelog base-openapi.json pr-openapi.json || true
+
+      - name: Fail on breaking changes (unless override label is set)
+        id: breaking
+        run: |
+          OVERRIDE_LABEL='openapi-breaking-change-approved'
+          if echo '${{ toJson(github.event.pull_request.labels.*.name) }}' | grep -q "$OVERRIDE_LABEL"; then
+            echo "Override label '$OVERRIDE_LABEL' present — breaking changes allowed."
+            exit 0
+          fi
+          oasdiff breaking base-openapi.json pr-openapi.json --fail-on ERR

@@ -33,9 +33,10 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # ── Database migrations ──────────────────────────────────────────────
-      # PostgreSQL is firewalled; briefly allow this runner's IP, apply the
-      # migrations, then close the rule again (always, even on failure).
+      # ── Database access window ───────────────────────────────────────────
+      # PostgreSQL is firewalled; briefly allow this runner's IP for the whole
+      # job so migrations AND the post-deploy contract tests can reach it.
+      # Closed at job end with `if: always()`.
       # Requires: repo variable POSTGRES_SERVER, repo secret DATABASE_URL.
       - name: Open temporary DB firewall for the runner
         run: |
@@ -51,14 +52,6 @@ jobs:
         run: npx prisma migrate deploy
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
-
-      - name: Close temporary DB firewall
-        if: always()
-        run: |
-          az postgres flexible-server firewall-rule delete \
-            --resource-group ${{ vars.RESOURCE_GROUP }} \
-            --name ${{ vars.POSTGRES_SERVER }} \
-            --rule-name gh-deploy-temp --yes || true
 
       # ── Application rollout ──────────────────────────────────────────────
       # Build the image inside Azure Container Registry. Requires var ACR_NAME.
@@ -79,9 +72,36 @@ jobs:
             --image ${{ vars.ACR_NAME }}.azurecr.io/vigiscam-backend:${{ github.sha }}
 
       - name: Show backend URL
+        id: backend-url
         run: |
-          echo "Backend deployed to:"
-          az containerapp show \
+          FQDN=$(az containerapp show \
             --name ${{ vars.CONTAINER_APP_NAME }} \
             --resource-group ${{ vars.RESOURCE_GROUP }} \
-            --query properties.configuration.ingress.fqdn -o tsv
+            --query properties.configuration.ingress.fqdn -o tsv)
+          echo "Backend deployed to: $FQDN"
+          echo "fqdn=$FQDN" >> "$GITHUB_OUTPUT"
+
+      # ── Post-deploy contract smoke ───────────────────────────────────────
+      # Run the Phase 7 contract suite against the freshly deployed revision.
+      # Required repo secrets: CONTRACT_ADMIN_EMAIL, CONTRACT_ADMIN_PASSWORD.
+      # DATABASE_URL is the same secret the migrations step already uses;
+      # passing it here lets the suite seed the OSINT row needed by the 7D
+      # auto-takedown assertion via Prisma — no psql needed.
+      # A failure here means the deploy succeeded technically but the deployed
+      # binary doesn't honor the published contract — the rollout is bad.
+      - name: Post-deploy contract tests
+        env:
+          CONTRACT_API_BASE: https://${{ steps.backend-url.outputs.fqdn }}/api/v1
+          CONTRACT_ADMIN_EMAIL: ${{ secrets.CONTRACT_ADMIN_EMAIL }}
+          CONTRACT_ADMIN_PASSWORD: ${{ secrets.CONTRACT_ADMIN_PASSWORD }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: npm run test:contract
+
+      # Close the DB firewall hole regardless of what happened above.
+      - name: Close temporary DB firewall
+        if: always()
+        run: |
+          az postgres flexible-server firewall-rule delete \
+            --resource-group ${{ vars.RESOURCE_GROUP }} \
+            --name ${{ vars.POSTGRES_SERVER }} \
+            --rule-name gh-deploy-temp --yes || true

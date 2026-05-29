@@ -34,3 +34,6 @@ prisma/*.db-journal
 # azure / infra local state
 *.azureauth
 .bicep/
+
+# OpenAPI spec is a build artifact — generated types are the canonical SDK
+openapi.json
