@@ -115,9 +115,7 @@ export class EmbeddingService {
         });
         written++;
       } catch (err) {
-        this.logger.warn(
-          `Failed to persist similarity ${aId}<->${bId}: ${String(err)}`,
-        );
+        this.logger.warn(`Failed to persist similarity ${aId}<->${bId}: ${String(err)}`);
       }
     }
     return written;

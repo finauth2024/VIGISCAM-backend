@@ -15,11 +15,7 @@ export class FreezeGuardController {
   @Post('telemetry')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Ingest device/session technical telemetry' })
-  ingest(
-    @CurrentUser() user: AuthenticatedUser,
-    @Body() dto: TelemetryDto,
-    @Req() req: Request,
-  ) {
+  ingest(@CurrentUser() user: AuthenticatedUser, @Body() dto: TelemetryDto, @Req() req: Request) {
     return this.freezeGuard.ingestTelemetry(user, dto, {
       ip: req.ip,
       userAgent: req.headers['user-agent'],

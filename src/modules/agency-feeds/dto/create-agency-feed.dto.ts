@@ -29,7 +29,8 @@ export class CreateAgencyFeedDto {
 
   @ApiProperty({
     required: false,
-    description: 'Consuming jurisdiction label (ISO country / region). Audit only — not a query filter.',
+    description:
+      'Consuming jurisdiction label (ISO country / region). Audit only — not a query filter.',
   })
   @IsOptional()
   @IsString()

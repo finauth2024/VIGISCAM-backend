@@ -9,9 +9,7 @@ import { PartnerPrincipal } from './partner.types';
  */
 export const CurrentPartner = createParamDecorator(
   (field: keyof PartnerPrincipal | undefined, ctx: ExecutionContext) => {
-    const request = ctx
-      .switchToHttp()
-      .getRequest<Request & { partner?: PartnerPrincipal }>();
+    const request = ctx.switchToHttp().getRequest<Request & { partner?: PartnerPrincipal }>();
     const partner = request.partner;
     return field && partner ? partner[field] : partner;
   },

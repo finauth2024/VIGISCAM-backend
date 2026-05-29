@@ -11,7 +11,10 @@ export class UpdateTakedownStatusDto {
   @IsEnum(TakedownStatus)
   status!: TakedownStatus;
 
-  @ApiProperty({ required: false, description: "Provider's case / ticket reference, if newly known." })
+  @ApiProperty({
+    required: false,
+    description: "Provider's case / ticket reference, if newly known.",
+  })
   @IsOptional()
   @IsString()
   @MaxLength(200)

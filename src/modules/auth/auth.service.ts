@@ -73,9 +73,7 @@ export class AuthService {
   async login(dto: LoginDto, ctx: RequestContext): Promise<AuthResult> {
     const email = dto.email.toLowerCase().trim();
     const user = await this.prisma.user.findUnique({ where: { email } });
-    const passwordOk = user
-      ? await this.passwords.compare(dto.password, user.passwordHash)
-      : false;
+    const passwordOk = user ? await this.passwords.compare(dto.password, user.passwordHash) : false;
     // Same response whether the email exists or not — no account enumeration.
     if (!user || !passwordOk) {
       throw new UnauthorizedException('Invalid email or password');

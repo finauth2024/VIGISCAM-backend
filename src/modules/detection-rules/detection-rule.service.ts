@@ -44,13 +44,7 @@ export class DetectionRuleService {
     dto: CreateDetectionRuleDto,
     ctx: RequestContext = {},
   ): Promise<DetectionRule> {
-    return this.createInternal(
-      actor,
-      dto,
-      ctx,
-      'RULE_CREATED',
-      'Detection rule created as DRAFT',
-    );
+    return this.createInternal(actor, dto, ctx, 'RULE_CREATED', 'Detection rule created as DRAFT');
   }
 
   /**

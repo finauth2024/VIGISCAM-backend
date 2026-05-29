@@ -29,15 +29,12 @@ export class AuthenticityClient {
     }
     const checkPath = req.checkType.toLowerCase().replace(/_/g, '-');
     try {
-      const res = await fetch(
-        `${this.baseUrl.replace(/\/$/, '')}/authenticity/${checkPath}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(req),
-          signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-        },
-      );
+      const res = await fetch(`${this.baseUrl.replace(/\/$/, '')}/authenticity/${checkPath}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(req),
+        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+      });
       if (!res.ok) {
         this.logger.warn(
           `Authenticity service ${res.status} for ${req.checkType} — using stub fallback`,

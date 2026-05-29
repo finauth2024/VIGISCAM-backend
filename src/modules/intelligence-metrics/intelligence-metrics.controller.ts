@@ -16,7 +16,9 @@ export class IntelligenceMetricsController {
   constructor(private readonly metrics: IntelligenceMetricsService) {}
 
   @Get()
-  @ApiOperation({ summary: 'Live counts across signals, clusters, registry, rules, appeals and takedowns' })
+  @ApiOperation({
+    summary: 'Live counts across signals, clusters, registry, rules, appeals and takedowns',
+  })
   get() {
     return this.metrics.getMetrics();
   }

@@ -22,10 +22,7 @@ export class AuthenticityService {
     private readonly client: AuthenticityClient,
   ) {}
 
-  async runCheck(
-    actor: AuthenticatedUser,
-    req: AuthenticityRequest,
-  ): Promise<AuthenticityCheck> {
+  async runCheck(actor: AuthenticatedUser, req: AuthenticityRequest): Promise<AuthenticityCheck> {
     const session = await this.prisma.session.findUnique({ where: { id: req.sessionId } });
     if (!session) {
       throw new NotFoundException('Session not found');
@@ -93,10 +90,7 @@ export class AuthenticityService {
   list(sessionId?: string, checkType?: string, limit = 100) {
     const where: Prisma.AuthenticityCheckWhereInput = {};
     if (sessionId) where.sessionId = sessionId;
-    if (
-      checkType &&
-      (Object.values(AuthenticityCheckType) as string[]).includes(checkType)
-    ) {
+    if (checkType && (Object.values(AuthenticityCheckType) as string[]).includes(checkType)) {
       where.checkType = checkType as AuthenticityCheckType;
     }
     return this.prisma.authenticityCheck.findMany({

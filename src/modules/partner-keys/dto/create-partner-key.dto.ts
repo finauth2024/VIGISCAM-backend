@@ -18,7 +18,9 @@ export class CreatePartnerKeyDto {
   @IsUUID()
   tenantId!: string;
 
-  @ApiProperty({ description: 'Human label for the key (e.g. "ACME Bank — production ingestion").' })
+  @ApiProperty({
+    description: 'Human label for the key (e.g. "ACME Bank — production ingestion").',
+  })
   @IsString()
   @MinLength(3)
   @MaxLength(200)

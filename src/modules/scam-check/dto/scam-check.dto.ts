@@ -13,7 +13,10 @@ export class ScamCheckDto {
   @MaxLength(2000)
   indicatorValue!: string;
 
-  @ApiProperty({ required: false, description: 'Message / transcript text to scan for scam language.' })
+  @ApiProperty({
+    required: false,
+    description: 'Message / transcript text to scan for scam language.',
+  })
   @IsOptional()
   @IsString()
   @MaxLength(10000)

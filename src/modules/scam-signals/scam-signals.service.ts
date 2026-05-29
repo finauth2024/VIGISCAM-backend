@@ -14,8 +14,7 @@ import { normalizeIndicator } from './normalization';
 
 const PUBLIC_REPORT_ACK =
   'Report received. VIGISCAM will review and classify the signal before any public-safe use.';
-const PARTNER_REPORT_ACK =
-  'Partner report accepted and queued for review.';
+const PARTNER_REPORT_ACK = 'Partner report accepted and queued for review.';
 
 export interface SubmitReportResult {
   status: 'UNVERIFIED_REPORT';
@@ -351,7 +350,11 @@ export class ScamSignalsService {
     const categoryMatch = input.hasCategory ? 8 : 0;
     const confidenceScore = Math.min(
       100,
-      sourceReliabilityScore + evidenceStrengthScore + recencyScore + repeatOccurrence + categoryMatch,
+      sourceReliabilityScore +
+        evidenceStrengthScore +
+        recencyScore +
+        repeatOccurrence +
+        categoryMatch,
     );
     return { sourceReliabilityScore, evidenceStrengthScore, recencyScore, confidenceScore };
   }

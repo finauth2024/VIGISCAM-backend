@@ -34,10 +34,7 @@ export class AuthenticityController {
   @Post()
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Run an Authenticity Verification Suite check against a session' })
-  run(
-    @CurrentUser() user: AuthenticatedUser,
-    @Body() dto: RequestAuthenticityCheckDto,
-  ) {
+  run(@CurrentUser() user: AuthenticatedUser, @Body() dto: RequestAuthenticityCheckDto) {
     return this.authenticity.runCheck(user, dto);
   }
 

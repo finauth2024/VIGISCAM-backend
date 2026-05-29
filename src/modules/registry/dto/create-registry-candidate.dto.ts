@@ -3,7 +3,10 @@ import { RegistryPublicStatus } from '@prisma/client';
 import { IsEnum, IsOptional, IsString, IsUUID, MaxLength, MinLength } from 'class-validator';
 
 export class CreateRegistryCandidateDto {
-  @ApiProperty({ format: 'uuid', description: 'A signal already promoted to verified intelligence.' })
+  @ApiProperty({
+    format: 'uuid',
+    description: 'A signal already promoted to verified intelligence.',
+  })
   @IsUUID()
   signalId!: string;
 

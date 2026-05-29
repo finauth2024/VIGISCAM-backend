@@ -10,7 +10,9 @@ import {
 describe('Phase 6E insight stubs', () => {
   describe('stubAssessJourney', () => {
     it('detects PAYMENT_REQUEST from payment keywords', () => {
-      const r = stubAssessJourney({ transcript: 'Please wire the money right away, send a gift card.' });
+      const r = stubAssessJourney({
+        transcript: 'Please wire the money right away, send a gift card.',
+      });
       expect(r.stage).toBe('PAYMENT_REQUEST');
       expect(r.modelVersion).toBe(STUB_JOURNEY_VERSION);
       expect(r.confidence).toBeGreaterThan(35);
@@ -31,7 +33,9 @@ describe('Phase 6E insight stubs', () => {
 
   describe('stubAssessVictimState', () => {
     it('detects ALARMED from fear keywords', () => {
-      const r = stubAssessVictimState({ transcript: "I'm scared they'll arrest me, I'm panicked." });
+      const r = stubAssessVictimState({
+        transcript: "I'm scared they'll arrest me, I'm panicked.",
+      });
       expect(r.state).toBe('ALARMED');
       expect(r.modelVersion).toBe(STUB_VICTIM_STATE_VERSION);
     });

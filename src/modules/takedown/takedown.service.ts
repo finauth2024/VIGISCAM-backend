@@ -104,7 +104,9 @@ export class TakedownService {
     if (!allowed.includes(dto.status)) {
       throw new BadRequestException(
         `Cannot move a takedown from ${takedown.status} to ${dto.status}` +
-          (allowed.length ? `; allowed: ${allowed.join(', ')}` : ' — it is already in a final state'),
+          (allowed.length
+            ? `; allowed: ${allowed.join(', ')}`
+            : ' — it is already in a final state'),
       );
     }
 

@@ -18,7 +18,11 @@ export const SCAM_PHRASE_LIBRARY: ScamPhrase[] = [
   { pattern: 'keep this between us', tactic: 'SECRECY', signal: 'SECRECY' },
   { pattern: 'safe account', tactic: 'FAKE_BANK_INSTRUCTION', signal: 'FAKE_AUTHORITY' },
   { pattern: 'move your money', tactic: 'FAKE_BANK_INSTRUCTION', signal: 'FAKE_AUTHORITY' },
-  { pattern: 'you are under investigation', tactic: 'FAKE_AUTHORITY_THREAT', signal: 'FAKE_AUTHORITY' },
+  {
+    pattern: 'you are under investigation',
+    tactic: 'FAKE_AUTHORITY_THREAT',
+    signal: 'FAKE_AUTHORITY',
+  },
   { pattern: 'install anydesk', tactic: 'REMOTE_ACCESS_REQUEST', signal: 'REMOTE_ACCESS' },
   { pattern: 'anydesk', tactic: 'REMOTE_ACCESS_REQUEST', signal: 'REMOTE_ACCESS' },
   { pattern: 'teamviewer', tactic: 'REMOTE_ACCESS_REQUEST', signal: 'REMOTE_ACCESS' },

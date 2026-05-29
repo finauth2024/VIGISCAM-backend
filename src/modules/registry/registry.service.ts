@@ -5,7 +5,13 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
-import { IndicatorType, Prisma, RegistryEntry, RegistryEntryStatus, WebhookEventType } from '@prisma/client';
+import {
+  IndicatorType,
+  Prisma,
+  RegistryEntry,
+  RegistryEntryStatus,
+  WebhookEventType,
+} from '@prisma/client';
 import { AuthenticatedUser, RequestContext } from '../../common/auth/auth.types';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { EvidenceService } from '../evidence-vault/evidence.service';
@@ -63,7 +69,10 @@ export class RegistryService {
 
   async search(query: RegistrySearchQuery): Promise<RegistrySearchResult> {
     const page = Math.max(1, Math.floor(query.page ?? 1));
-    const limit = Math.min(MAX_PAGE_SIZE, Math.max(1, Math.floor(query.limit ?? DEFAULT_PAGE_SIZE)));
+    const limit = Math.min(
+      MAX_PAGE_SIZE,
+      Math.max(1, Math.floor(query.limit ?? DEFAULT_PAGE_SIZE)),
+    );
 
     // Cache key includes every dimension that changes the result.
     const cacheKey = this.buildCacheKey({ ...query, page, limit });
@@ -224,25 +233,51 @@ export class RegistryService {
   }
 
   /** Public-safe review approval (CANDIDATE -> APPROVED_PUBLIC_SAFE). */
-  async approve(admin: AuthenticatedUser, id: string, ctx: RequestContext = {}): Promise<RegistryEntry> {
+  async approve(
+    admin: AuthenticatedUser,
+    id: string,
+    ctx: RequestContext = {},
+  ): Promise<RegistryEntry> {
     await this.requireStatus(id, ['CANDIDATE', 'UNDER_REVIEW']);
     const updated = await this.prisma.registryEntry.update({
       where: { id },
-      data: { status: 'APPROVED_PUBLIC_SAFE', approvedByUserId: admin.userId, approvedAt: new Date() },
+      data: {
+        status: 'APPROVED_PUBLIC_SAFE',
+        approvedByUserId: admin.userId,
+        approvedAt: new Date(),
+      },
     });
     await this.markQueueComplete(id, admin, 'APPROVED');
-    await this.logEvidence(updated, admin, 'ADMIN', 'REGISTRY_APPROVED', 'Registry entry passed public-safe review', ctx);
+    await this.logEvidence(
+      updated,
+      admin,
+      'ADMIN',
+      'REGISTRY_APPROVED',
+      'Registry entry passed public-safe review',
+      ctx,
+    );
     return updated;
   }
 
   /** Publish an approved entry — it becomes publicly searchable. */
-  async publish(admin: AuthenticatedUser, id: string, ctx: RequestContext = {}): Promise<RegistryEntry> {
+  async publish(
+    admin: AuthenticatedUser,
+    id: string,
+    ctx: RequestContext = {},
+  ): Promise<RegistryEntry> {
     await this.requireStatus(id, ['APPROVED_PUBLIC_SAFE']);
     const updated = await this.prisma.registryEntry.update({
       where: { id },
       data: { status: 'PUBLISHED', publishedAt: new Date() },
     });
-    await this.logEvidence(updated, admin, 'ADMIN', 'REGISTRY_PUBLISHED', 'Registry entry published to the public registry', ctx);
+    await this.logEvidence(
+      updated,
+      admin,
+      'ADMIN',
+      'REGISTRY_PUBLISHED',
+      'Registry entry published to the public registry',
+      ctx,
+    );
     this.invalidateSearchCache();
     await this.notifyPartner(updated, 'REGISTRY_PUBLISHED');
 
@@ -257,13 +292,24 @@ export class RegistryService {
   }
 
   /** Remove a published entry from the public registry. */
-  async unpublish(admin: AuthenticatedUser, id: string, ctx: RequestContext = {}): Promise<RegistryEntry> {
+  async unpublish(
+    admin: AuthenticatedUser,
+    id: string,
+    ctx: RequestContext = {},
+  ): Promise<RegistryEntry> {
     await this.requireStatus(id, ['PUBLISHED']);
     const updated = await this.prisma.registryEntry.update({
       where: { id },
       data: { status: 'APPROVED_PUBLIC_SAFE', publishedAt: null },
     });
-    await this.logEvidence(updated, admin, 'ADMIN', 'REGISTRY_UNPUBLISHED', 'Registry entry removed from the public registry', ctx);
+    await this.logEvidence(
+      updated,
+      admin,
+      'ADMIN',
+      'REGISTRY_UNPUBLISHED',
+      'Registry entry removed from the public registry',
+      ctx,
+    );
     this.invalidateSearchCache();
     await this.notifyPartner(updated, 'REGISTRY_UNPUBLISHED');
     return updated;
@@ -297,14 +343,25 @@ export class RegistryService {
     }
   }
 
-  async reject(admin: AuthenticatedUser, id: string, ctx: RequestContext = {}): Promise<RegistryEntry> {
+  async reject(
+    admin: AuthenticatedUser,
+    id: string,
+    ctx: RequestContext = {},
+  ): Promise<RegistryEntry> {
     await this.requireStatus(id, ['CANDIDATE', 'UNDER_REVIEW', 'APPROVED_PUBLIC_SAFE']);
     const updated = await this.prisma.registryEntry.update({
       where: { id },
       data: { status: 'REJECTED' },
     });
     await this.markQueueComplete(id, admin, 'REJECTED');
-    await this.logEvidence(updated, admin, 'ADMIN', 'REGISTRY_REJECTED', 'Registry entry rejected', ctx);
+    await this.logEvidence(
+      updated,
+      admin,
+      'ADMIN',
+      'REGISTRY_REJECTED',
+      'Registry entry rejected',
+      ctx,
+    );
     return updated;
   }
 

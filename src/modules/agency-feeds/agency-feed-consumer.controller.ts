@@ -36,7 +36,11 @@ export class AgencyFeedConsumerController {
     summary:
       'Consume the feed — returns PUBLISHED registry entries matching the feed filters, since the optional cursor.',
   })
-  @ApiQuery({ name: 'since', required: false, description: 'ISO timestamp — return entries updated after this point.' })
+  @ApiQuery({
+    name: 'since',
+    required: false,
+    description: 'ISO timestamp — return entries updated after this point.',
+  })
   @ApiQuery({ name: 'limit', required: false, description: 'Max items (1-200, default 50).' })
   consume(
     @CurrentPartner() partner: PartnerPrincipal,

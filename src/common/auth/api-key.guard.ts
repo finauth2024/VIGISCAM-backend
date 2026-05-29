@@ -39,9 +39,7 @@ export class ApiKeyGuard implements CanActivate {
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    const request = context
-      .switchToHttp()
-      .getRequest<Request & { partner?: PartnerPrincipal }>();
+    const request = context.switchToHttp().getRequest<Request & { partner?: PartnerPrincipal }>();
     const raw = this.extractKey(request);
     if (!raw) {
       throw new UnauthorizedException('Missing X-API-Key header');
@@ -63,9 +61,7 @@ export class ApiKeyGuard implements CanActivate {
     if (required && required.length > 0) {
       const missing = required.filter((scope) => !key.scopes.includes(scope));
       if (missing.length > 0) {
-        throw new ForbiddenException(
-          `API key is missing required scope(s): ${missing.join(', ')}`,
-        );
+        throw new ForbiddenException(`API key is missing required scope(s): ${missing.join(', ')}`);
       }
     }
 

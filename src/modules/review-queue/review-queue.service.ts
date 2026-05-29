@@ -1,5 +1,10 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
-import { RegistryReviewQueue, ScamSignal, ScamSignalStatus, ReviewQueueStatus } from '@prisma/client';
+import {
+  RegistryReviewQueue,
+  ScamSignal,
+  ScamSignalStatus,
+  ReviewQueueStatus,
+} from '@prisma/client';
 import { AuthenticatedUser, RequestContext } from '../../common/auth/auth.types';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { EvidenceService } from '../evidence-vault/evidence.service';
@@ -39,9 +44,7 @@ export class ReviewQueueService {
       take: 200,
     });
 
-    const signalIds = items
-      .map((i) => i.signalId)
-      .filter((id): id is string => id !== null);
+    const signalIds = items.map((i) => i.signalId).filter((id): id is string => id !== null);
     const signals = signalIds.length
       ? await this.prisma.scamSignal.findMany({ where: { id: { in: signalIds } } })
       : [];

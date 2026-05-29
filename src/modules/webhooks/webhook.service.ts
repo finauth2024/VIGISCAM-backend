@@ -1,14 +1,5 @@
-import {
-  Injectable,
-  Logger,
-  NotFoundException,
-} from '@nestjs/common';
-import {
-  Prisma,
-  WebhookDelivery,
-  WebhookEventType,
-  WebhookSubscription,
-} from '@prisma/client';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Prisma, WebhookDelivery, WebhookEventType, WebhookSubscription } from '@prisma/client';
 import { createHmac, randomBytes, randomUUID } from 'crypto';
 import { AuthenticatedUser, RequestContext } from '../../common/auth/auth.types';
 import { PrismaService } from '../../common/prisma/prisma.service';
@@ -181,10 +172,7 @@ export class WebhookService {
    * regardless of tenant — used for public events like PUBLIC_ALERT_PUBLISHED
    * (Phase 7F). Fire-and-forget per delivery.
    */
-  async broadcastPublic(
-    eventType: WebhookEventType,
-    data: Record<string, unknown>,
-  ): Promise<void> {
+  async broadcastPublic(eventType: WebhookEventType, data: Record<string, unknown>): Promise<void> {
     const subs = await this.prisma.webhookSubscription.findMany({
       where: { status: 'ACTIVE', eventTypes: { has: eventType } },
     });

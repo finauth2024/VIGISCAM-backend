@@ -1,12 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import {
-  ArrayMaxSize,
-  IsArray,
-  IsBoolean,
-  IsOptional,
-  IsString,
-  IsUUID,
-} from 'class-validator';
+import { ArrayMaxSize, IsArray, IsBoolean, IsOptional, IsString, IsUUID } from 'class-validator';
 
 /**
  * A telemetry report from the desktop agent / browser extension describing the

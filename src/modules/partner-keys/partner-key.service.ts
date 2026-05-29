@@ -1,8 +1,4 @@
-import {
-  BadRequestException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PartnerApiKey, PartnerApiKeyPlan, TenantType } from '@prisma/client';
 import { createHash, randomBytes } from 'crypto';
 import { AuthenticatedUser, RequestContext } from '../../common/auth/auth.types';

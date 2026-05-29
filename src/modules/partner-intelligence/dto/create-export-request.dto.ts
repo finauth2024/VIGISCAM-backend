@@ -18,12 +18,18 @@ export class CreateExportRequestDto {
   @MaxLength(60)
   entityId?: string;
 
-  @ApiProperty({ required: false, description: 'ISO timestamp — include only events at or after this point.' })
+  @ApiProperty({
+    required: false,
+    description: 'ISO timestamp — include only events at or after this point.',
+  })
   @IsOptional()
   @IsDateString()
   from?: string;
 
-  @ApiProperty({ required: false, description: 'ISO timestamp — include only events at or before this point.' })
+  @ApiProperty({
+    required: false,
+    description: 'ISO timestamp — include only events at or before this point.',
+  })
   @IsOptional()
   @IsDateString()
   to?: string;

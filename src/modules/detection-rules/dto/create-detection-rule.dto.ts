@@ -46,7 +46,11 @@ export class CreateDetectionRuleDto {
   @MaxLength(60)
   category?: string;
 
-  @ApiProperty({ enum: RiskLevel, required: false, description: 'Risk level a match should raise.' })
+  @ApiProperty({
+    enum: RiskLevel,
+    required: false,
+    description: 'Risk level a match should raise.',
+  })
   @IsOptional()
   @IsEnum(RiskLevel)
   severity?: RiskLevel;

@@ -7,21 +7,32 @@ import { IsEnum, IsOptional, IsString, IsUUID, MaxLength, MinLength } from 'clas
  * request is created as a DRAFT — it is not considered sent until submitted.
  */
 export class CreateTakedownDto {
-  @ApiProperty({ format: 'uuid', description: 'The registry entry whose infrastructure is targeted.' })
+  @ApiProperty({
+    format: 'uuid',
+    description: 'The registry entry whose infrastructure is targeted.',
+  })
   @IsUUID()
   registryEntryId!: string;
 
-  @ApiProperty({ enum: TakedownProviderType, description: 'Kind of provider the request is addressed to.' })
+  @ApiProperty({
+    enum: TakedownProviderType,
+    description: 'Kind of provider the request is addressed to.',
+  })
   @IsEnum(TakedownProviderType)
   providerType!: TakedownProviderType;
 
-  @ApiProperty({ description: 'Provider the request is addressed to (e.g. registrar / host name).' })
+  @ApiProperty({
+    description: 'Provider the request is addressed to (e.g. registrar / host name).',
+  })
   @IsString()
   @MinLength(2)
   @MaxLength(200)
   providerName!: string;
 
-  @ApiProperty({ required: false, description: "Provider's own case / ticket reference, if known." })
+  @ApiProperty({
+    required: false,
+    description: "Provider's own case / ticket reference, if known.",
+  })
   @IsOptional()
   @IsString()
   @MaxLength(200)

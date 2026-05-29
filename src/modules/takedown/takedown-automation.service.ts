@@ -138,10 +138,7 @@ export class TakedownAutomationService {
   // ─────────────── Helpers ───────────────
 
   /** OSINT puts the registrar name under `data.registrar` for DOMAIN/URL stubs. */
-  private extractDetectedName(
-    data: unknown,
-    providerType: TakedownProviderType,
-  ): string | null {
+  private extractDetectedName(data: unknown, providerType: TakedownProviderType): string | null {
     if (!data || typeof data !== 'object') return null;
     const d = data as Record<string, unknown>;
     if (providerType === TakedownProviderType.DOMAIN_REGISTRAR) {

@@ -1,4 +1,9 @@
-import { cosineSimilarity, STUB_EMBEDDING_DIMS, STUB_EMBEDDING_VERSION, stubEmbed } from './embedding-stub';
+import {
+  cosineSimilarity,
+  STUB_EMBEDDING_DIMS,
+  STUB_EMBEDDING_VERSION,
+  stubEmbed,
+} from './embedding-stub';
 
 describe('embedding stub', () => {
   it('returns null for empty / too-short text', () => {

@@ -47,15 +47,36 @@ export interface PredictedMoveResult {
 // ─── Fraud Journey ───
 
 const JOURNEY_RULES: Array<{ stage: FraudJourneyStage; pattern: RegExp; keyword: string }> = [
-  { stage: 'PAYMENT_REQUEST', pattern: /\b(payment|transfer|wire|gift\s*card|send\s+money)\b/i, keyword: 'payment-request' },
-  { stage: 'URGENCY_INJECTION', pattern: /\b(urgent|right\s+now|immediately|expires\s+today)\b/i, keyword: 'urgency' },
-  { stage: 'INFORMATION_GATHERING', pattern: /\b(social\s+security|ssn|password|account\s+number|date\s+of\s+birth)\b/i, keyword: 'info-gathering' },
-  { stage: 'TRUST_BUILDING', pattern: /\b(trust\s+me|i'?ll\s+help|i\s+understand|my\s+friend)\b/i, keyword: 'trust-building' },
+  {
+    stage: 'PAYMENT_REQUEST',
+    pattern: /\b(payment|transfer|wire|gift\s*card|send\s+money)\b/i,
+    keyword: 'payment-request',
+  },
+  {
+    stage: 'URGENCY_INJECTION',
+    pattern: /\b(urgent|right\s+now|immediately|expires\s+today)\b/i,
+    keyword: 'urgency',
+  },
+  {
+    stage: 'INFORMATION_GATHERING',
+    pattern: /\b(social\s+security|ssn|password|account\s+number|date\s+of\s+birth)\b/i,
+    keyword: 'info-gathering',
+  },
+  {
+    stage: 'TRUST_BUILDING',
+    pattern: /\b(trust\s+me|i'?ll\s+help|i\s+understand|my\s+friend)\b/i,
+    keyword: 'trust-building',
+  },
 ];
 
 export function stubAssessJourney(hints: InsightHints = {}): JourneyResult {
   if (hints.forceStage) {
-    return { stage: hints.forceStage, confidence: 80, modelVersion: STUB_JOURNEY_VERSION, evidence: { matchedKeywords: ['forced'] } };
+    return {
+      stage: hints.forceStage,
+      confidence: 80,
+      modelVersion: STUB_JOURNEY_VERSION,
+      evidence: { matchedKeywords: ['forced'] },
+    };
   }
   const text = `${hints.transcript ?? ''} ${hints.notes ?? ''}`;
   const matched: string[] = [];
@@ -68,22 +89,48 @@ export function stubAssessJourney(hints: InsightHints = {}): JourneyResult {
     }
   }
   const confidence = matched.length === 0 ? 35 : Math.min(70, 35 + matched.length * 12);
-  return { stage: chosen, confidence, modelVersion: STUB_JOURNEY_VERSION, evidence: { matchedKeywords: matched } };
+  return {
+    stage: chosen,
+    confidence,
+    modelVersion: STUB_JOURNEY_VERSION,
+    evidence: { matchedKeywords: matched },
+  };
 }
 
 // ─── Victim State ───
 
 const VICTIM_RULES: Array<{ state: VictimStateLabel; pattern: RegExp; keyword: string }> = [
-  { state: 'COMPROMISED', pattern: /\b(ok(ay)?\s+i'?ll\s+do\s+it|alright\s+(then|fine)|i'?ll\s+send\s+it)\b/i, keyword: 'compliance' },
+  {
+    state: 'COMPROMISED',
+    pattern: /\b(ok(ay)?\s+i'?ll\s+do\s+it|alright\s+(then|fine)|i'?ll\s+send\s+it)\b/i,
+    keyword: 'compliance',
+  },
   { state: 'ALARMED', pattern: /\b(scared|afraid|threatened|panic|terrified)\b/i, keyword: 'fear' },
-  { state: 'PRESSURED', pattern: /\b(let\s+me\s+(think|check)|wait|but\s+i'?m\s+not\s+sure)\b/i, keyword: 'hesitation' },
-  { state: 'CONFUSED', pattern: /\b(confused|don'?t\s+understand|what\s+do\s+you\s+mean|why)\b/i, keyword: 'confusion' },
-  { state: 'TRUSTING', pattern: /\b(thank\s+you|that\s+makes\s+sense|i\s+believe\s+you)\b/i, keyword: 'trust' },
+  {
+    state: 'PRESSURED',
+    pattern: /\b(let\s+me\s+(think|check)|wait|but\s+i'?m\s+not\s+sure)\b/i,
+    keyword: 'hesitation',
+  },
+  {
+    state: 'CONFUSED',
+    pattern: /\b(confused|don'?t\s+understand|what\s+do\s+you\s+mean|why)\b/i,
+    keyword: 'confusion',
+  },
+  {
+    state: 'TRUSTING',
+    pattern: /\b(thank\s+you|that\s+makes\s+sense|i\s+believe\s+you)\b/i,
+    keyword: 'trust',
+  },
 ];
 
 export function stubAssessVictimState(hints: InsightHints = {}): VictimStateResult {
   if (hints.forceState) {
-    return { state: hints.forceState, confidence: 80, modelVersion: STUB_VICTIM_STATE_VERSION, signals: { matchedKeywords: ['forced'] } };
+    return {
+      state: hints.forceState,
+      confidence: 80,
+      modelVersion: STUB_VICTIM_STATE_VERSION,
+      signals: { matchedKeywords: ['forced'] },
+    };
   }
   const text = `${hints.transcript ?? ''} ${hints.notes ?? ''}`;
   const matched: string[] = [];
@@ -95,7 +142,12 @@ export function stubAssessVictimState(hints: InsightHints = {}): VictimStateResu
     }
   }
   const confidence = matched.length === 0 ? 40 : Math.min(70, 40 + matched.length * 10);
-  return { state: chosen, confidence, modelVersion: STUB_VICTIM_STATE_VERSION, signals: { matchedKeywords: matched } };
+  return {
+    state: chosen,
+    confidence,
+    modelVersion: STUB_VICTIM_STATE_VERSION,
+    signals: { matchedKeywords: matched },
+  };
 }
 
 // ─── Predicted Next Move (state-machine over journey stage) ───

@@ -21,8 +21,7 @@ describe('NLP stub classifier', () => {
 
   it('never exceeds the stub confidence cap (70)', () => {
     const out = classifyWithStub({
-      text:
-        'Microsoft support needs remote access right now or your account is suspended — official IRS warrant, do not tell anyone, buy a gift card.',
+      text: 'Microsoft support needs remote access right now or your account is suspended — official IRS warrant, do not tell anyone, buy a gift card.',
     });
     expect(out.scamScore).toBeLessThanOrEqual(70);
     expect(out.categoryConfidence).toBeLessThanOrEqual(70);

@@ -183,9 +183,7 @@ export class InternalAdminService {
       },
     });
     if (remaining === 0) {
-      throw new BadRequestException(
-        'Cannot remove or demote the last active SUPER_ADMIN',
-      );
+      throw new BadRequestException('Cannot remove or demote the last active SUPER_ADMIN');
     }
   }
 

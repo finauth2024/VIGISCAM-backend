@@ -35,11 +35,7 @@ export function stubOsintEnrich(input: OsintEnrichmentInput): OsintEnrichmentOut
   };
 }
 
-function buildData(
-  type: IndicatorType,
-  indicator: string,
-  seed: number,
-): Record<string, unknown> {
+function buildData(type: IndicatorType, indicator: string, seed: number): Record<string, unknown> {
   switch (type) {
     case 'DOMAIN':
     case 'URL': {
@@ -74,7 +70,11 @@ function buildData(
       return { country, carrierType, riskHints };
     }
     case 'CRYPTO_WALLET': {
-      const chain = /^0x/i.test(indicator) ? 'EVM' : indicator.startsWith('bc1') ? 'BTC' : 'UNKNOWN';
+      const chain = /^0x/i.test(indicator)
+        ? 'EVM'
+        : indicator.startsWith('bc1')
+          ? 'BTC'
+          : 'UNKNOWN';
       const balanceBucket = ['empty', 'micro', 'small', 'medium', 'large'][seed % 5];
       const knownScamListHit = seed % 6 === 0;
       const riskHints: string[] = [];

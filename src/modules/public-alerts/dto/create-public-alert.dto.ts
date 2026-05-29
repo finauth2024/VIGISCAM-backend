@@ -19,7 +19,9 @@ export class CreatePublicAlertDto {
   @MaxLength(200)
   title!: string;
 
-  @ApiProperty({ description: 'The alert body. Public-safe language; identity accusations are rejected.' })
+  @ApiProperty({
+    description: 'The alert body. Public-safe language; identity accusations are rejected.',
+  })
   @IsString()
   @MinLength(20)
   @MaxLength(5000)

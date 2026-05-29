@@ -1,15 +1,5 @@
-import {
-  BadRequestException,
-  Injectable,
-  Logger,
-  NotFoundException,
-} from '@nestjs/common';
-import {
-  Prisma,
-  PublicAlert,
-  PublicAlertSeverity,
-  PublicAlertStatus,
-} from '@prisma/client';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Prisma, PublicAlert, PublicAlertSeverity, PublicAlertStatus } from '@prisma/client';
 import { AuthenticatedUser, RequestContext } from '../../common/auth/auth.types';
 import { CacheService } from '../../common/cache/cache.service';
 import { EvidenceService } from '../evidence-vault/evidence.service';
@@ -144,10 +134,7 @@ export class PublicAlertService {
 
   listInternal(filters: { status?: string; region?: string } = {}) {
     const where: Prisma.PublicAlertWhereInput = {};
-    if (
-      filters.status &&
-      (Object.values(PublicAlertStatus) as string[]).includes(filters.status)
-    ) {
+    if (filters.status && (Object.values(PublicAlertStatus) as string[]).includes(filters.status)) {
       where.status = filters.status as PublicAlertStatus;
     }
     if (filters.region) where.region = filters.region;
@@ -170,11 +157,13 @@ export class PublicAlertService {
    * Public listing: PUBLISHED alerts only, filterable by region + minimum
    * severity. Cached for 60 s with key invalidation on status changes.
    */
-  async listPublic(filters: {
-    region?: string;
-    minSeverity?: string;
-    limit?: number;
-  } = {}) {
+  async listPublic(
+    filters: {
+      region?: string;
+      minSeverity?: string;
+      limit?: number;
+    } = {},
+  ) {
     const limit = Math.min(MAX_LIMIT, Math.max(1, Math.floor(filters.limit ?? DEFAULT_LIMIT)));
     const cacheKey = `${ALERTS_CACHE_PREFIX}r=${filters.region ?? ''}|s=${filters.minSeverity ?? ''}|l=${limit}`;
     const cached = this.cache.get<PublicAlert[]>(cacheKey);

@@ -76,8 +76,7 @@ export class ScamCheckService {
       languageSignalCount: language.signals.length,
     });
 
-    const category =
-      registryMatch?.category ?? signals.find((s) => s.category)?.category ?? null;
+    const category = registryMatch?.category ?? signals.find((s) => s.category)?.category ?? null;
 
     // 5. Persist the check result.
     const result = await this.prisma.scamCheckResult.create({

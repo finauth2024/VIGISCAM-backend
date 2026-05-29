@@ -37,7 +37,10 @@ export function emailDomain(email: string): string | null {
   if (at < 0) {
     return null;
   }
-  const domain = email.slice(at + 1).trim().toLowerCase();
+  const domain = email
+    .slice(at + 1)
+    .trim()
+    .toLowerCase();
   return domain.includes('.') && !/\s/.test(domain) ? domain : null;
 }
 

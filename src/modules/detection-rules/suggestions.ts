@@ -70,8 +70,8 @@ export const MIN_TACTIC_FREQUENCY = 2;
  *  patterns the NLP stub looks for (see nlp-stub.ts) so the suggested rule
  *  would actually match the text the AI flagged. */
 export const TACTIC_PHRASES: Record<string, string[]> = {
-  urgency: ['urgent', 'right now', 'immediately', 'expires today', "act now"],
-  secrecy: ["do not tell anyone", 'keep this secret', 'between you and me'],
+  urgency: ['urgent', 'right now', 'immediately', 'expires today', 'act now'],
+  secrecy: ['do not tell anyone', 'keep this secret', 'between you and me'],
   'fake-authority': ['official notice', 'court order', 'law enforcement'],
   pressure: ['or else', 'will be arrested', 'final notice', 'final warning'],
 };

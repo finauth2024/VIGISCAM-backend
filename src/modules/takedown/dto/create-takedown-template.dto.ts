@@ -23,7 +23,9 @@ export class CreateTakedownTemplateDto {
   @MaxLength(200)
   providerName!: string;
 
-  @ApiProperty({ description: 'Case-insensitive regex matched against OSINT-detected registrar / host name.' })
+  @ApiProperty({
+    description: 'Case-insensitive regex matched against OSINT-detected registrar / host name.',
+  })
   @IsString()
   @MinLength(1)
   @MaxLength(500)
@@ -36,8 +38,7 @@ export class CreateTakedownTemplateDto {
   abuseContact?: string;
 
   @ApiProperty({
-    description:
-      'Request boilerplate with `{indicator}`, `{category}`, `{summary}` placeholders.',
+    description: 'Request boilerplate with `{indicator}`, `{category}`, `{summary}` placeholders.',
   })
   @IsString()
   @MinLength(20)
@@ -49,7 +50,11 @@ export class CreateTakedownTemplateDto {
   @IsBoolean()
   enabled?: boolean;
 
-  @ApiProperty({ required: false, default: 0, description: 'Higher priority wins when multiple templates match.' })
+  @ApiProperty({
+    required: false,
+    default: 0,
+    description: 'Higher priority wins when multiple templates match.',
+  })
   @IsOptional()
   @IsInt()
   @Min(0)

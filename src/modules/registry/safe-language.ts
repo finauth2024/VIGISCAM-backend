@@ -16,7 +16,8 @@ import { BadRequestException } from '@nestjs/common';
  */
 const FORBIDDEN_PATTERNS: { pattern: RegExp; label: string }[] = [
   {
-    pattern: /\bis\s+(a\s+|an\s+)?(scammer|criminal|fraudster|thief|crook|con\s?artist|scam\s?artist|swindler)\b/i,
+    pattern:
+      /\bis\s+(a\s+|an\s+)?(scammer|criminal|fraudster|thief|crook|con\s?artist|scam\s?artist|swindler)\b/i,
     label: 'a direct identity accusation (e.g. "is a scammer")',
   },
   {

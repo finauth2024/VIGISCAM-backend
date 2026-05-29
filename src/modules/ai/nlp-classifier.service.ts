@@ -36,9 +36,7 @@ export class NlpClassifierService {
     ctx: ClassifyContext = {},
   ): Promise<ClassifyResult> {
     const start = Date.now();
-    const inputDigest = createHash('sha256')
-      .update(this.canonical(input))
-      .digest('hex');
+    const inputDigest = createHash('sha256').update(this.canonical(input)).digest('hex');
     const inputSnippet = (input.text ?? '').slice(0, SNIPPET_LEN) || null;
 
     const { output, source } = await this.client.classify(input);

@@ -129,8 +129,7 @@ export function classifyWithStub(input: NlpClassificationInput): NlpClassificati
   ).map(({ tactic }) => tactic);
 
   // Honour the caller's hint when the stub finds no stronger signal.
-  const category =
-    categoryHits[0]?.category ?? input.hintedCategory ?? null;
+  const category = categoryHits[0]?.category ?? input.hintedCategory ?? null;
   const categoryConfidence = categoryHits.length
     ? Math.min(70, 35 + categoryHits.length * 15)
     : input.hintedCategory
@@ -140,9 +139,7 @@ export function classifyWithStub(input: NlpClassificationInput): NlpClassificati
   // Capped at 70 — the stub is deliberately not allowed to look "verified".
   const scamScore = Math.min(
     70,
-    (categoryHits.length ? 30 : 10) +
-      categoryHits.length * 12 +
-      tacticHits.length * 8,
+    (categoryHits.length ? 30 : 10) + categoryHits.length * 12 + tacticHits.length * 8,
   );
 
   return {

@@ -72,8 +72,14 @@ export class GuardianshipService {
           },
         });
 
-    await this.logEvidence(link, guardian.userId, 'USER', 'GUARDIANSHIP_REQUESTED',
-      'Guardianship requested; awaiting protected-user consent', ctx);
+    await this.logEvidence(
+      link,
+      guardian.userId,
+      'USER',
+      'GUARDIANSHIP_REQUESTED',
+      'Guardianship requested; awaiting protected-user consent',
+      ctx,
+    );
     return link;
   }
 
@@ -92,7 +98,11 @@ export class GuardianshipService {
   }
 
   /** The protected user grants consent — the only thing that activates monitoring. */
-  async grantConsent(user: AuthenticatedUser, id: string, ctx: RequestContext = {}): Promise<GuardianLink> {
+  async grantConsent(
+    user: AuthenticatedUser,
+    id: string,
+    ctx: RequestContext = {},
+  ): Promise<GuardianLink> {
     const link = await this.requireProtectedUserLink(user, id);
     if (link.status !== 'PENDING') {
       throw new BadRequestException('This guardianship request is not pending');
@@ -101,12 +111,22 @@ export class GuardianshipService {
       where: { id },
       data: { status: 'ACTIVE', consentGrantedAt: new Date() },
     });
-    await this.logEvidence(updated, user.userId, 'USER', 'CONSENT_GRANTED',
-      'Protected user granted monitoring consent', ctx);
+    await this.logEvidence(
+      updated,
+      user.userId,
+      'USER',
+      'CONSENT_GRANTED',
+      'Protected user granted monitoring consent',
+      ctx,
+    );
     return updated;
   }
 
-  async declineConsent(user: AuthenticatedUser, id: string, ctx: RequestContext = {}): Promise<GuardianLink> {
+  async declineConsent(
+    user: AuthenticatedUser,
+    id: string,
+    ctx: RequestContext = {},
+  ): Promise<GuardianLink> {
     const link = await this.requireProtectedUserLink(user, id);
     if (link.status !== 'PENDING') {
       throw new BadRequestException('This guardianship request is not pending');
@@ -115,13 +135,23 @@ export class GuardianshipService {
       where: { id },
       data: { status: 'DECLINED' },
     });
-    await this.logEvidence(updated, user.userId, 'USER', 'CONSENT_DECLINED',
-      'Protected user declined the guardianship request', ctx);
+    await this.logEvidence(
+      updated,
+      user.userId,
+      'USER',
+      'CONSENT_DECLINED',
+      'Protected user declined the guardianship request',
+      ctx,
+    );
     return updated;
   }
 
   /** The protected user revokes consent — monitoring stops immediately. */
-  async revokeConsent(user: AuthenticatedUser, id: string, ctx: RequestContext = {}): Promise<GuardianLink> {
+  async revokeConsent(
+    user: AuthenticatedUser,
+    id: string,
+    ctx: RequestContext = {},
+  ): Promise<GuardianLink> {
     const link = await this.requireProtectedUserLink(user, id);
     if (link.status !== 'ACTIVE') {
       throw new BadRequestException('This guardianship is not active');
@@ -130,8 +160,14 @@ export class GuardianshipService {
       where: { id },
       data: { status: 'REVOKED', consentRevokedAt: new Date() },
     });
-    await this.logEvidence(updated, user.userId, 'USER', 'CONSENT_REVOKED',
-      'Protected user revoked monitoring consent', ctx);
+    await this.logEvidence(
+      updated,
+      user.userId,
+      'USER',
+      'CONSENT_REVOKED',
+      'Protected user revoked monitoring consent',
+      ctx,
+    );
     return updated;
   }
 
@@ -148,7 +184,9 @@ export class GuardianshipService {
       throw new NotFoundException('Guardianship not found');
     }
     if (link.status !== 'ACTIVE') {
-      throw new ForbiddenException('Monitoring is not active — consent was not granted or has been revoked');
+      throw new ForbiddenException(
+        'Monitoring is not active — consent was not granted or has been revoked',
+      );
     }
 
     const [recentRiskEvents, openAlerts] = await Promise.all([
@@ -160,8 +198,14 @@ export class GuardianshipService {
       this.prisma.alert.count({ where: { userId: link.protectedUserId, readAt: null } }),
     ]);
 
-    await this.logEvidence(link, guardian.userId, 'GUARDIAN', 'GUARDIAN_ACCESSED_PROTECTED_USER',
-      `Guardian viewed the protected user's risk summary`, ctx);
+    await this.logEvidence(
+      link,
+      guardian.userId,
+      'GUARDIAN',
+      'GUARDIAN_ACCESSED_PROTECTED_USER',
+      `Guardian viewed the protected user's risk summary`,
+      ctx,
+    );
 
     return {
       protectedUser: { id: link.protectedUser.id, fullName: link.protectedUser.fullName },
@@ -178,7 +222,10 @@ export class GuardianshipService {
     };
   }
 
-  private async requireProtectedUserLink(user: AuthenticatedUser, id: string): Promise<GuardianLink> {
+  private async requireProtectedUserLink(
+    user: AuthenticatedUser,
+    id: string,
+  ): Promise<GuardianLink> {
     const link = await this.prisma.guardianLink.findUnique({ where: { id } });
     if (!link || link.protectedUserId !== user.userId) {
       throw new NotFoundException('Guardianship request not found');

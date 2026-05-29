@@ -7,7 +7,10 @@ export class RequestFusionDto {
   @IsUUID()
   sessionId!: string;
 
-  @ApiProperty({ required: false, description: 'Optional transcript / interaction text fed to the AI stubs.' })
+  @ApiProperty({
+    required: false,
+    description: 'Optional transcript / interaction text fed to the AI stubs.',
+  })
   @IsOptional()
   @IsString()
   @MaxLength(10_000)
@@ -19,12 +22,20 @@ export class RequestFusionDto {
   @MaxLength(2_000)
   notes?: string;
 
-  @ApiProperty({ required: false, enum: FraudJourneyStage, description: 'Optional explicit stage override.' })
+  @ApiProperty({
+    required: false,
+    enum: FraudJourneyStage,
+    description: 'Optional explicit stage override.',
+  })
   @IsOptional()
   @IsEnum(FraudJourneyStage)
   forceStage?: FraudJourneyStage;
 
-  @ApiProperty({ required: false, enum: VictimStateLabel, description: 'Optional explicit victim-state override.' })
+  @ApiProperty({
+    required: false,
+    enum: VictimStateLabel,
+    description: 'Optional explicit victim-state override.',
+  })
   @IsOptional()
   @IsEnum(VictimStateLabel)
   forceState?: VictimStateLabel;

@@ -4,10 +4,10 @@ describe('Risk Fusion v2 scoring', () => {
   it('sums all layers and clamps to [0,100]', () => {
     const r = fuseRiskScore({
       baseScore: 40,
-      stage: 'PAYMENT_REQUEST',           // +30
-      victimState: 'COMPROMISED',          // +25
+      stage: 'PAYMENT_REQUEST', // +30
+      victimState: 'COMPROMISED', // +25
       predictedAction: 'REQUEST_GIFT_CARD', // +18
-      authenticityFailures: 1,             // +15
+      authenticityFailures: 1, // +15
     });
     // 40+30+25+18+15 = 128 → clamped 100
     expect(r.fusedScore).toBe(100);

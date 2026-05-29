@@ -159,7 +159,10 @@ export class EvidenceExportService {
     if (!record) {
       throw new NotFoundException('Evidence export bundle not found');
     }
-    if (record.status === 'EXPIRED' || (record.expiresAt && record.expiresAt.getTime() < Date.now())) {
+    if (
+      record.status === 'EXPIRED' ||
+      (record.expiresAt && record.expiresAt.getTime() < Date.now())
+    ) {
       throw new NotFoundException('Evidence export bundle has expired');
     }
     return record.bundle as unknown as EvidenceExportBundlePayload;
