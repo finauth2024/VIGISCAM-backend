@@ -97,6 +97,18 @@ jobs:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: npm run test:contract
 
+      # ── docs/08 acceptance gate ──────────────────────────────────────────
+      # The 20 acceptance criteria. Backend is declared "ready for frontend
+      # integration" only when this is green. Same secrets as the contract
+      # suite — no additional GitHub configuration required.
+      - name: Post-deploy acceptance tests (docs/08)
+        env:
+          CONTRACT_API_BASE: https://${{ steps.backend-url.outputs.fqdn }}/api/v1
+          CONTRACT_ADMIN_EMAIL: ${{ secrets.CONTRACT_ADMIN_EMAIL }}
+          CONTRACT_ADMIN_PASSWORD: ${{ secrets.CONTRACT_ADMIN_PASSWORD }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: npm run test:acceptance
+
       # Close the DB firewall hole regardless of what happened above.
       - name: Close temporary DB firewall
         if: always()

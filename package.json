@@ -25,6 +25,7 @@
     "openapi:export": "ts-node scripts/export-openapi.ts",
     "openapi:types": "npm run openapi:export && openapi-typescript openapi.json -o src/generated/api-types.ts",
     "test:contract": "jest --config ./test/contract/jest.config.json",
+    "test:acceptance": "jest --config ./test/acceptance/jest.config.json",
     "contract:bootstrap-admin": "ts-node scripts/bootstrap-contract-admin.ts",
     "postinstall": "prisma generate"
   },
