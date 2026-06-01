@@ -212,6 +212,22 @@ resource acrPull 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
   }
 }
 
+// Storage Blob Data Contributor — lets the backend identity upload/read
+// evidence blobs via DefaultAzureCredential when AZURE_STORAGE_ACCOUNT
+// is set without a connection string (Phase 8D).
+resource blobDataContributor 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(storage.id, uami.id, 'blob-data-contributor')
+  scope: storage
+  properties: {
+    roleDefinitionId: subscriptionResourceId(
+      'Microsoft.Authorization/roleDefinitions',
+      'ba92f5b4-2d11-453d-a403-e96b0029c9fe'
+    )
+    principalId: uami.properties.principalId
+    principalType: 'ServicePrincipal'
+  }
+}
+
 // ── Connection strings ──────────────────────────────────────────────────────
 // Phase 0 stores these as Container App native secrets (set at deploy time,
 // never in source control). Phase 1 hardening moves them into the Key Vault
@@ -282,6 +298,11 @@ resource backendApp 'Microsoft.App/containerApps@2024-03-01' = {
             { name: 'DATABASE_URL', secretRef: 'database-url' }
             { name: 'REDIS_URL', secretRef: 'redis-url' }
             { name: 'JWT_SECRET', secretRef: 'jwt-secret' }
+            // Phase 8D — the SDK resolves credentials via DefaultAzureCredential
+            // off the user-assigned identity (Storage Blob Data Contributor
+            // role assigned above). No connection string required in Azure.
+            { name: 'AZURE_STORAGE_ACCOUNT', value: storage.name }
+            { name: 'AZURE_STORAGE_CONTAINER', value: 'evidence' }
             { name: 'APPLICATIONINSIGHTS_CONNECTION_STRING', value: appInsights.properties.ConnectionString }
           ]
         }

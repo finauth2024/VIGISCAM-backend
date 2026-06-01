@@ -7,6 +7,7 @@ import configuration from './common/config/configuration';
 import { validateEnv } from './common/config/env.validation';
 import { JwtAuthGuard } from './common/auth/jwt-auth.guard';
 import { RolesGuard } from './common/auth/roles.guard';
+import { BlobModule } from './common/blob/blob.module';
 import { CacheModule } from './common/cache/cache.module';
 import { EventsModule } from './common/events/events.module';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
@@ -94,6 +95,7 @@ import { WebhooksModule } from './modules/webhooks/webhooks.module';
     CacheModule,
     QueueModule,
     EventsModule,
+    BlobModule,
     EvidenceModule,
     AlertsModule,
     HealthModule,

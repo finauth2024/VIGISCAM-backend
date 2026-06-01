@@ -44,6 +44,22 @@ class EnvironmentVariables {
   @IsString()
   REDIS_URL?: string;
 
+  // Phase 8D — Azure Blob Storage. Account name is required; the SDK can
+  // resolve credentials either from a connection string OR the Container
+  // App's managed identity (via DefaultAzureCredential). Both unset →
+  // BlobService runs in graceful-no-op mode.
+  @IsOptional()
+  @IsString()
+  AZURE_STORAGE_ACCOUNT?: string;
+
+  @IsOptional()
+  @IsString()
+  AZURE_STORAGE_CONNECTION_STRING?: string;
+
+  @IsOptional()
+  @IsString()
+  AZURE_STORAGE_CONTAINER: string = 'evidence';
+
   // Required — auth (JWT signing) cannot operate without it.
   @IsString()
   @MinLength(16)
