@@ -1755,6 +1755,7 @@ model ScamHoldEvent {
   user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   guardianPause PauseEvent?    @relation(fields: [guardianPauseEventId], references: [id], onDelete: SetNull)
   evidenceEvent EvidenceEvent? @relation(fields: [evidenceEventId], references: [id], onDelete: SetNull)
+  bankReviews   BankCaseReview[]
 
   @@index([userId])
   @@index([tenantId])
@@ -1762,6 +1763,55 @@ model ScamHoldEvent {
   @@index([riskLevel])
   @@index([userId, createdAt])
   @@map("scamhold_events")
+}
+
+// Phase 10B — BankGuard portal. Bank-tenant-scoped audit + decision rows
+// for teller-assist and case review. Risk levels and decisions are stored
+// as strings rather than enums so the bank-portal scorer can evolve
+// without an enum migration on every tweak; the controller still
+// validates against a closed DTO union.
+model TellerAssistScore {
+  id                   String   @id @default(uuid()) @db.Uuid
+  tenantId             String   @db.Uuid
+  tellerUserId         String   @db.Uuid
+  customerReference    String?
+  transactionChannel   String
+  amountMinor          BigInt
+  currency             String   @default("USD")
+  recipientType        String
+  customerStatedReason String?
+  behaviorSignals      Json?
+  riskScore            Int
+  riskLevel            String
+  recommendedAction    String
+  riskBreakdown        Json
+  evidenceEventId      String?  @db.Uuid
+  createdAt            DateTime @default(now())
+
+  @@index([tenantId])
+  @@index([tellerUserId])
+  @@index([riskLevel])
+  @@index([createdAt])
+  @@map("teller_assist_scores")
+}
+
+model BankCaseReview {
+  id               String   @id @default(uuid()) @db.Uuid
+  tenantId         String   @db.Uuid
+  scamHoldEventId  String   @db.Uuid
+  reviewedByUserId String   @db.Uuid
+  decision         String
+  notes            String?
+  evidenceEventId  String?  @db.Uuid
+  createdAt        DateTime @default(now())
+
+  scamHoldEvent ScamHoldEvent @relation(fields: [scamHoldEventId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, scamHoldEventId])
+  @@index([tenantId])
+  @@index([scamHoldEventId])
+  @@index([reviewedByUserId])
+  @@map("bank_case_reviews")
 }
 
 // Phase 9C — GiftCardGuard™. Gift cards are the most reliable scammer-

@@ -1,8 +1,12 @@
 name: Deploy
 
-# Manually triggered deploy to the Azure dev environment.
-# Once stable, a `push: branches: [main]` trigger can be added for auto-deploy.
+# Auto-deploys every push to main to the Azure dev environment, plus a
+# manual trigger for re-runs. Stable since Phase 8A — 16+ chunks shipped
+# with no failed deploys, so the manual gate is no longer worth the
+# friction of clicking "Run workflow" after every commit.
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
