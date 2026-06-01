@@ -1814,6 +1814,57 @@ model BankCaseReview {
   @@map("bank_case_reviews")
 }
 
+// Phase 10C — PlatformShield portal. Platforms (dating apps, social,
+// marketplaces) score conversations for grooming signals and record
+// moderation decisions on flagged claim verifications. Inputs are
+// signal flags only — no message content, no PII about minors.
+model GroomingCheckScore {
+  id                            String   @id @default(uuid()) @db.Uuid
+  tenantId                      String   @db.Uuid
+  moderatorUserId               String   @db.Uuid
+  subjectReference              String?
+  ageGapSignal                  String
+  relationshipDurationDays      Int?
+  loveBombingDetected           Boolean  @default(false)
+  isolationLanguageDetected     Boolean  @default(false)
+  paymentRequestDetected        Boolean  @default(false)
+  photoSolicitationDetected     Boolean  @default(false)
+  moveToPrivateChannelDetected  Boolean  @default(false)
+  piiEscalationDetected         Boolean  @default(false)
+  minorSuspected                Boolean  @default(false)
+  riskScore                     Int
+  riskLevel                     String
+  recommendedAction             String
+  riskBreakdown                 Json
+  evidenceEventId               String?  @db.Uuid
+  createdAt                     DateTime @default(now())
+
+  @@index([tenantId])
+  @@index([moderatorUserId])
+  @@index([riskLevel])
+  @@index([createdAt])
+  @@map("grooming_check_scores")
+}
+
+model PlatformModerationDecision {
+  id                  String   @id @default(uuid()) @db.Uuid
+  tenantId            String   @db.Uuid
+  claimVerificationId String   @db.Uuid
+  decidedByUserId     String   @db.Uuid
+  decision            String
+  notes               String?
+  evidenceEventId     String?  @db.Uuid
+  createdAt           DateTime @default(now())
+
+  claimVerification ClaimVerification @relation(fields: [claimVerificationId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, claimVerificationId])
+  @@index([tenantId])
+  @@index([claimVerificationId])
+  @@index([decidedByUserId])
+  @@map("platform_moderation_decisions")
+}
+
 // Phase 9C — GiftCardGuard™. Gift cards are the most reliable scammer-
 // favourite signal in the dataset, so a baseline 25-point score applies
 // to any gift-card scan. Detection-side flags (code reveal asked, photo
@@ -2038,9 +2089,10 @@ model ClaimVerification {
   createdAt              DateTime             @default(now())
   updatedAt              DateTime             @updatedAt
 
-  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  guardianPause PauseEvent?    @relation(fields: [guardianPauseEventId], references: [id], onDelete: SetNull)
-  evidenceEvent EvidenceEvent? @relation(fields: [evidenceEventId], references: [id], onDelete: SetNull)
+  user                User                         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  guardianPause       PauseEvent?                  @relation(fields: [guardianPauseEventId], references: [id], onDelete: SetNull)
+  evidenceEvent       EvidenceEvent?               @relation(fields: [evidenceEventId], references: [id], onDelete: SetNull)
+  platformDecisions   PlatformModerationDecision[]
 
   @@index([userId])
   @@index([tenantId])
