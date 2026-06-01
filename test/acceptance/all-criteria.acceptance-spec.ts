@@ -187,9 +187,7 @@ describeIfConfigured('docs/08 acceptance gate', () => {
       }
     });
     it('verify endpoint reports the chain is intact', async () => {
-      const res = await api.call<{ intact: boolean; totalEvents: number }>(
-        '/evidence/verify',
-      );
+      const res = await api.call<{ intact: boolean; totalEvents: number }>('/evidence/verify');
       expect(res.status).toBe(200);
       expect(res.data.intact).toBe(true);
     });

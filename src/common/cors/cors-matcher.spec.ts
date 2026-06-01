@@ -23,9 +23,7 @@ describe('CORS matcher', () => {
     it('rejects multi-segment subdomain hijacks', () => {
       // A naive `*` → `.*` translation would let this through.
       expect(isOriginAllowed(m, 'https://evil.com.vercel.app')).toBe(false);
-      expect(
-        isOriginAllowed(m, 'https://evil.attacker.io.vercel.app.attacker.com'),
-      ).toBe(false);
+      expect(isOriginAllowed(m, 'https://evil.attacker.io.vercel.app.attacker.com')).toBe(false);
     });
     it('rejects the bare apex', () => {
       expect(isOriginAllowed(m, 'https://vercel.app')).toBe(false);
@@ -33,10 +31,7 @@ describe('CORS matcher', () => {
   });
 
   describe('mixed exact + glob', () => {
-    const m = buildCorsMatchers([
-      'https://vigiscam.com',
-      'https://*.vercel.app',
-    ]);
+    const m = buildCorsMatchers(['https://vigiscam.com', 'https://*.vercel.app']);
     it('matches either', () => {
       expect(isOriginAllowed(m, 'https://vigiscam.com')).toBe(true);
       expect(isOriginAllowed(m, 'https://preview-abc.vercel.app')).toBe(true);
@@ -46,9 +41,7 @@ describe('CORS matcher', () => {
   describe('no Origin header', () => {
     it('is allowed (same-origin or non-browser caller)', () => {
       expect(isOriginAllowed([], undefined)).toBe(true);
-      expect(isOriginAllowed(buildCorsMatchers(['https://x']), undefined)).toBe(
-        true,
-      );
+      expect(isOriginAllowed(buildCorsMatchers(['https://x']), undefined)).toBe(true);
     });
   });
 });

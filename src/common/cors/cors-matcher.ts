@@ -37,15 +37,10 @@ class GlobMatcher implements Matcher {
 }
 
 export function buildCorsMatchers(patterns: string[]): Matcher[] {
-  return patterns.map((p) =>
-    p.includes('*') ? new GlobMatcher(p) : new ExactMatcher(p),
-  );
+  return patterns.map((p) => (p.includes('*') ? new GlobMatcher(p) : new ExactMatcher(p)));
 }
 
-export function isOriginAllowed(
-  matchers: Matcher[],
-  origin: string | undefined,
-): boolean {
+export function isOriginAllowed(matchers: Matcher[], origin: string | undefined): boolean {
   // Same-origin / non-browser callers (no Origin header) — allow.
   if (!origin) return true;
   return matchers.some((m) => m.test(origin));

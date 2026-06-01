@@ -1,9 +1,15 @@
+import { ConfigService } from '@nestjs/config';
 import { CacheService } from './cache.service';
 
-describe('CacheService', () => {
+/** A ConfigService that just returns undefined for everything — no Redis. */
+const noRedisConfig = {
+  get: () => undefined,
+} as unknown as ConfigService;
+
+describe('CacheService (single-process)', () => {
   let cache: CacheService;
   beforeEach(() => {
-    cache = new CacheService();
+    cache = new CacheService(noRedisConfig);
   });
 
   it('returns null for unknown keys', () => {
@@ -28,5 +34,11 @@ describe('CacheService', () => {
     expect(cache.get('a:1')).toBeNull();
     expect(cache.get('a:2')).toBeNull();
     expect(cache.get('b:1')).toBe(3);
+  });
+
+  it('delete removes a single key', () => {
+    cache.set('k', 1, 60_000);
+    cache.delete('k');
+    expect(cache.get('k')).toBeNull();
   });
 });

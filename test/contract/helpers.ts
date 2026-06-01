@@ -29,6 +29,12 @@ export interface ContractEnv {
    * workflow needs nothing extra — the existing DATABASE_URL secret covers it.
    */
   databaseUrl?: string;
+  /**
+   * Optional Redis URL. When present, the Phase 8A pub/sub contract test
+   * exercises the cross-process invalidation round-trip against a real
+   * broker. Otherwise the test skips.
+   */
+  redisUrl?: string;
 }
 
 /** Cheap email shape check — same vocabulary class-validator's IsEmail uses. */
@@ -56,6 +62,7 @@ export function loadEnv(): ContractEnv | null {
     baseUrl,
     admin: { email, password },
     databaseUrl: process.env.DATABASE_URL,
+    redisUrl: process.env.REDIS_URL,
   };
 }
 
