@@ -30,6 +30,7 @@ import { FreezeGuardModule } from './modules/freezeguard/freezeguard.module';
 import { FreezeLockModule } from './modules/freezelock/freezelock.module';
 import { GiftCardGuardModule } from './modules/giftcardguard/giftcardguard.module';
 import { GuardianPauseModule } from './modules/guardian-pause/guardian-pause.module';
+import { IdentityGraphModule } from './modules/identity-graph/identity-graph.module';
 import { HealthModule } from './modules/health/health.module';
 import { IntelligenceMetricsModule } from './modules/intelligence-metrics/intelligence-metrics.module';
 import { InternalAdminModule } from './modules/internal-admin/internal-admin.module';
@@ -135,6 +136,7 @@ import { WebhooksModule } from './modules/webhooks/webhooks.module';
     WebhooksModule,
     AiModule,
     FraudGraphModule,
+    IdentityGraphModule,
     AuthenticityModule,
     RiskFusionV2Module,
     OsintModule,

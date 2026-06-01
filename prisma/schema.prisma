@@ -1189,6 +1189,14 @@ enum FraudGraphNodeType {
   INDICATOR
   CAMPAIGN
   ACTOR
+  // Phase 9G — Identity Collision Graph node types (brief §1147).
+  PROFILE
+  FACE_SIGNAL
+  VOICE_SIGNAL
+  SCRIPT_PATTERN
+  PAYMENT_REQUEST
+  GIFT_CARD_REQUEST
+  IP_RANGE
 }
 
 /// Why two nodes are linked. MVP edge types are all symmetric, so each edge
@@ -1199,6 +1207,14 @@ enum FraudGraphEdgeType {
   SIMILAR_TEXT
   SHARED_CATEGORY
   CAMPAIGN_MEMBERSHIP
+  // Phase 9G — Identity Collision Graph edge types (brief §1147).
+  SIMILAR_PROFILE_PHOTO
+  SIMILAR_SCRIPT
+  SAME_PAYMENT_REQUEST
+  HANDLE_CONFUSABILITY
+  VOICE_PATTERN_MATCH
+  FACE_PATTERN_MATCH
+  SHARED_VICTIM_STORY
 }
 
 /// A node in the Identity Collision Graph. Each unique
@@ -1210,6 +1226,11 @@ model FraudGraphNode {
   indicatorType       IndicatorType?
   normalizedIndicator String?
   label               String
+  /// Phase 9G — public-safe redacted display value. Populated for
+  /// sensitive node types (PHONE / EMAIL / PROFILE / FACE_SIGNAL /
+  /// VOICE_SIGNAL); reads through the masker so callers never see the
+  /// raw `normalizedIndicator` on those node types.
+  displayMask         String?
   category            String?
   signalCount         Int                @default(0)
   riskScore           Int                @default(0)
