@@ -41,6 +41,7 @@ import { ReviewQueueModule } from './modules/review-queue/review-queue.module';
 import { RiskFusionV2Module } from './modules/risk-fusion-v2/risk-fusion-v2.module';
 import { RiskModule } from './modules/risk-fusion/risk.module';
 import { ScamCheckModule } from './modules/scam-check/scam-check.module';
+import { ScamHoldModule } from './modules/scamhold/scamhold.module';
 import { ScamSignalsModule } from './modules/scam-signals/scam-signals.module';
 import { SessionsModule } from './modules/sessions/sessions.module';
 import { TakedownModule } from './modules/takedown/takedown.module';
@@ -112,6 +113,7 @@ import { WebhooksModule } from './modules/webhooks/webhooks.module';
     FamiliesModule,
     ScamSignalsModule,
     ScamCheckModule,
+    ScamHoldModule,
     RegistryModule,
     ReviewQueueModule,
     TakedownModule,

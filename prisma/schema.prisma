@@ -116,6 +116,7 @@ model User {
   guardianLinks    GuardianLink[]   @relation("GuardianLinks")
   protectedByLinks GuardianLink[]   @relation("ProtectedByLinks")
   pauseEvents      PauseEvent[]
+  scamHoldEvents   ScamHoldEvent[]
 
   @@map("users")
 }
@@ -466,7 +467,8 @@ model EvidenceEvent {
   occurredAt       DateTime
   createdAt        DateTime @default(now())
 
-  pauseEvents PauseEvent[]
+  pauseEvents    PauseEvent[]
+  scamHoldEvents ScamHoldEvent[]
 
   @@unique([tenantId, sequence])
   @@index([tenantId])
@@ -1646,9 +1648,81 @@ model PauseEvent {
   user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   evidenceEvent EvidenceEvent? @relation(fields: [evidenceEventId], references: [id], onDelete: SetNull)
 
+  scamHoldEvents ScamHoldEvent[]
+
   @@index([userId])
   @@index([tenantId])
   @@index([status])
   @@index([userId, startedAt])
   @@map("pause_events")
+}
+
+// Phase 9B — ScamHold AI™. A scamhold event is opened when the user
+// attempts a high-risk financial action; the service scores it and the
+// user (or system) records a final decision. CRITICAL risk pulls
+// Guardian Pause (9A); high-risk + Elder Mode escalates to a trusted
+// contact review (lands in 9H).
+enum ScamHoldTransactionType {
+  CRYPTO
+  GIFT_CARD
+  WIRE_TRANSFER
+  BANK_TRANSFER
+  PAYMENT_APP
+  ONLINE_PAYMENT
+}
+
+enum ScamHoldRiskLevel {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum ScamHoldStatus {
+  PENDING
+  RELEASE_AFTER_VERIFICATION
+  BLOCK
+  SEND_TO_TRUSTED_CONTACT
+  SAVE_ONLY
+  CONTINUE_ANYWAY
+}
+
+model ScamHoldEvent {
+  id                     String                  @id @default(uuid()) @db.Uuid
+  userId                 String                  @db.Uuid
+  tenantId               String?                 @db.Uuid
+  transactionType        ScamHoldTransactionType
+  /// Smallest unit (cents / satoshis / etc) so floats never touch the DB.
+  amountMinor            BigInt
+  currency               String                  @default("USD")
+  recipient              String
+  recipientRisk          String                  @default("UNKNOWN")
+  urgencyDetected        Boolean                 @default(false)
+  secrecyDetected        Boolean                 @default(false)
+  activeCommunication    Boolean                 @default(false)
+  priorWarningsCount     Int                     @default(0)
+  riskScore              Int
+  riskLevel              ScamHoldRiskLevel
+  riskBreakdown          Json
+  status                 ScamHoldStatus          @default(PENDING)
+  decidedAt              DateTime?
+  decisionNotes          String?
+  guardianPauseEventId   String?                 @db.Uuid
+  evidenceEventId        String?                 @db.Uuid
+  /// Soft pointer; trusted_contact_reviews lands in 9H.
+  trustedContactReviewId String?                 @db.Uuid
+  metadata               Json?
+  createdAt              DateTime                @default(now())
+  updatedAt              DateTime                @updatedAt
+
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  guardianPause PauseEvent?    @relation(fields: [guardianPauseEventId], references: [id], onDelete: SetNull)
+  evidenceEvent EvidenceEvent? @relation(fields: [evidenceEventId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([tenantId])
+  @@index([status])
+  @@index([riskLevel])
+  @@index([userId, createdAt])
+  @@map("scamhold_events")
 }
