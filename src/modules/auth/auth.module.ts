@@ -11,6 +11,9 @@ import { JwtStrategy } from './strategies/jwt.strategy';
   imports: [
     PassportModule,
     JwtModule.registerAsync({
+      // Global so the WebSocket gateway (and any other cross-cutting consumer)
+      // can verify tokens without re-importing this module.
+      global: true,
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
         secret: config.getOrThrow<string>('jwt.secret'),

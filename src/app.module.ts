@@ -8,6 +8,7 @@ import { validateEnv } from './common/config/env.validation';
 import { JwtAuthGuard } from './common/auth/jwt-auth.guard';
 import { RolesGuard } from './common/auth/roles.guard';
 import { CacheModule } from './common/cache/cache.module';
+import { EventsModule } from './common/events/events.module';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { PrismaModule } from './common/prisma/prisma.module';
 import { QueueModule } from './common/queue/queue.module';
@@ -92,6 +93,7 @@ import { WebhooksModule } from './modules/webhooks/webhooks.module';
     PrismaModule,
     CacheModule,
     QueueModule,
+    EventsModule,
     EvidenceModule,
     AlertsModule,
     HealthModule,
