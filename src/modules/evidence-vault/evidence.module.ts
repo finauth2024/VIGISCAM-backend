@@ -1,4 +1,5 @@
 import { Global, Module } from '@nestjs/common';
+import { EvidenceFileService } from './evidence-file.service';
 import { EvidenceController } from './evidence.controller';
 import { EvidenceService } from './evidence.service';
 
@@ -6,7 +7,7 @@ import { EvidenceService } from './evidence.service';
 @Global()
 @Module({
   controllers: [EvidenceController],
-  providers: [EvidenceService],
-  exports: [EvidenceService],
+  providers: [EvidenceService, EvidenceFileService],
+  exports: [EvidenceService, EvidenceFileService],
 })
 export class EvidenceModule {}

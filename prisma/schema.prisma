@@ -480,6 +480,7 @@ model EvidenceEvent {
   claimVerifications    ClaimVerification[]
   scamMirrorSessions    ScamMirrorSession[]
   trustedContactReviews TrustedContactReview[]
+  files                 EvidenceFile[]
 
   @@unique([tenantId, sequence])
   @@index([tenantId])
@@ -2117,4 +2118,38 @@ model TrustedContactReview {
   @@index([status])
   @@index([triggerModule, triggerEventId])
   @@map("trusted_contact_reviews")
+}
+
+// Phase 10A — Evidence Vault file storage. Files live in Azure Blob;
+// this table is the discovery + audit surface (sha256 for tamper
+// detection, retention deadline, legal-hold flag).
+model EvidenceFile {
+  id               String   @id @default(uuid()) @db.Uuid
+  evidenceEventId  String   @db.Uuid
+  tenantId         String?  @db.Uuid
+  filename         String
+  mimeType         String
+  sizeBytes        BigInt
+  sha256           String
+  blobUri          String
+  uploadedAt       DateTime @default(now())
+  /// When null the file follows the tenant's default retention policy.
+  /// When set, the file is kept until at least this date even if the
+  /// tenant changes the default.
+  retentionUntil   DateTime?
+  /// While true, the file is exempt from any retention purge — the
+  /// chain-of-custody guarantee for ongoing legal cases.
+  legalHold        Boolean  @default(false)
+  uploadedByUserId String?  @db.Uuid
+  metadata         Json?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  evidenceEvent EvidenceEvent @relation(fields: [evidenceEventId], references: [id], onDelete: Cascade)
+
+  @@index([evidenceEventId])
+  @@index([tenantId])
+  @@index([sha256])
+  @@index([legalHold])
+  @@map("evidence_files")
 }
