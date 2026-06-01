@@ -31,11 +31,27 @@ export interface ContractEnv {
   databaseUrl?: string;
 }
 
+/** Cheap email shape check — same vocabulary class-validator's IsEmail uses. */
+function looksLikeEmail(s: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s);
+}
+
 export function loadEnv(): ContractEnv | null {
   const baseUrl = process.env.CONTRACT_API_BASE;
   const email = process.env.CONTRACT_ADMIN_EMAIL;
   const password = process.env.CONTRACT_ADMIN_PASSWORD;
   if (!baseUrl || !email || !password) return null;
+
+  // Catch the most common CI misconfiguration BEFORE the login call so the
+  // failure points at the actual cause (a malformed GitHub secret) instead
+  // of the backend's "email must be an email" response.
+  if (!looksLikeEmail(email)) {
+    throw new Error(
+      `CONTRACT_ADMIN_EMAIL doesn't look like an email — got ${email.length} chars. ` +
+        'Check the GitHub secret on the backend repo: Settings → Secrets and variables → Actions.',
+    );
+  }
+
   return {
     baseUrl,
     admin: { email, password },
