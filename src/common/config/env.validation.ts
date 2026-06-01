@@ -60,6 +60,32 @@ class EnvironmentVariables {
   @IsString()
   AZURE_STORAGE_CONTAINER: string = 'evidence';
 
+  // Phase 8E — notification provider credentials. All optional; a channel
+  // with missing creds becomes a stub that logs the would-be delivery.
+  @IsOptional()
+  @IsString()
+  SENDGRID_API_KEY?: string;
+
+  @IsOptional()
+  @IsString()
+  SENDGRID_FROM_EMAIL?: string;
+
+  @IsOptional()
+  @IsString()
+  TWILIO_ACCOUNT_SID?: string;
+
+  @IsOptional()
+  @IsString()
+  TWILIO_AUTH_TOKEN?: string;
+
+  @IsOptional()
+  @IsString()
+  TWILIO_FROM_NUMBER?: string;
+
+  @IsOptional()
+  @IsString()
+  FCM_SERVER_KEY?: string;
+
   // Required — auth (JWT signing) cannot operate without it.
   @IsString()
   @MinLength(16)
