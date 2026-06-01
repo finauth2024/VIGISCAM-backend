@@ -115,6 +115,7 @@ model User {
   trustedContacts  TrustedContact[]
   guardianLinks    GuardianLink[]   @relation("GuardianLinks")
   protectedByLinks GuardianLink[]   @relation("ProtectedByLinks")
+  pauseEvents      PauseEvent[]
 
   @@map("users")
 }
@@ -464,6 +465,8 @@ model EvidenceEvent {
   eventHash        String
   occurredAt       DateTime
   createdAt        DateTime @default(now())
+
+  pauseEvents PauseEvent[]
 
   @@unique([tenantId, sequence])
   @@index([tenantId])
@@ -1584,4 +1587,68 @@ model NotificationDelivery {
   @@index([channel, status])
   @@index([templateKey])
   @@map("notification_deliveries")
+}
+
+// Phase 9A — Guardian Pause™. Triggered when the system wants the user to
+// stop and reconsider a risky action. Lifecycle: ACTIVE → one of
+// RESOLVED / CONTINUED_ANYWAY / EXPIRED. continueAnywayCount accumulates
+// repeated push-throughs and feeds back into risk scoring.
+enum GuardianPauseTriggerType {
+  MEDIUM_RISK
+  CONTINUE_ANYWAY
+  GIFT_CARD_REVEAL
+  CRYPTO_TRANSFER_RISK
+  WALLET_SWITCH
+  SUSPICIOUS_CLAIM
+  SCAMHOLD_ACTIVE
+  URGENCY
+  SECRECY
+  ROMANCE_PRESSURE
+  FAKE_AUTHORITY_PRESSURE
+  ELDER_MODE_FINANCIAL
+}
+
+enum GuardianPauseRiskLevel {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum GuardianPauseStatus {
+  ACTIVE
+  RESOLVED
+  CONTINUED_ANYWAY
+  EXPIRED
+}
+
+model PauseEvent {
+  id                     String                   @id @default(uuid()) @db.Uuid
+  userId                 String                   @db.Uuid
+  tenantId               String?                  @db.Uuid
+  riskLevel              GuardianPauseRiskLevel
+  triggerType            GuardianPauseTriggerType
+  triggerSummary         String
+  evidenceEventId        String?                  @db.Uuid
+  /// Soft pointer; trusted_contact_reviews lands in 9H. Reads can still
+  /// fold the decision into the pause history without a FK round-trip.
+  trustedContactReviewId String?                  @db.Uuid
+  status                 GuardianPauseStatus      @default(ACTIVE)
+  startedAt              DateTime                 @default(now())
+  expiresAt              DateTime
+  resolvedAt             DateTime?
+  resolutionNotes        String?
+  continueAnywayCount    Int                      @default(0)
+  metadata               Json?
+  createdAt              DateTime                 @default(now())
+  updatedAt              DateTime                 @updatedAt
+
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  evidenceEvent EvidenceEvent? @relation(fields: [evidenceEventId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([tenantId])
+  @@index([status])
+  @@index([userId, startedAt])
+  @@map("pause_events")
 }
