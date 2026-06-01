@@ -6,6 +6,10 @@ import helmet from 'helmet';
 import { Logger } from 'nestjs-pino';
 import { AppModule } from './app.module';
 import { buildCorsMatchers, isOriginAllowed } from './common/cors/cors-matcher';
+// Side-effect import — teaches JSON.stringify how to serialize a bigint.
+// MUST come before NestFactory.create so Prisma `@db.BigInt` fields
+// (e.g. scamhold_events.amountMinor) round-trip through HTTP responses.
+import './common/json/bigint-shim';
 
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
