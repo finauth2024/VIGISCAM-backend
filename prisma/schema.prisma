@@ -120,6 +120,7 @@ model User {
   giftCardWarnings   GiftCardWarning[]
   walletChecks       WalletCheck[]
   claimVerifications ClaimVerification[]
+  scamMirrorSessions ScamMirrorSession[]
 
   @@map("users")
 }
@@ -475,6 +476,7 @@ model EvidenceEvent {
   giftCardWarnings   GiftCardWarning[]
   walletChecks       WalletCheck[]
   claimVerifications ClaimVerification[]
+  scamMirrorSessions ScamMirrorSession[]
 
   @@unique([tenantId, sequence])
   @@index([tenantId])
@@ -1658,6 +1660,7 @@ model PauseEvent {
   giftCardWarnings   GiftCardWarning[]
   walletChecks       WalletCheck[]
   claimVerifications ClaimVerification[]
+  scamMirrorSessions ScamMirrorSession[]
 
   @@index([userId])
   @@index([tenantId])
@@ -1970,4 +1973,59 @@ model ClaimVerification {
   @@index([riskLevel])
   @@index([userId, createdAt])
   @@map("claim_verifications")
+}
+
+// Phase 9F — ScamMirror™. Safe simulation environment. Hard sanitizer
+// rejects real bank cards / private keys / mnemonics / SSNs. If a real
+// credential slips through, the session is force-ended ABORTED_REAL_CREDS
+// and a Guardian Pause is pulled (the user just demonstrated they're at
+// live risk of leaking those secrets).
+enum ScamMirrorPersona {
+  TECH_SUPPORT
+  BANK_IMPERSONATION
+  ROMANCE
+  GOVERNMENT
+  INVESTMENT
+  INHERITANCE
+  EMPLOYER
+  OTHER
+}
+
+enum ScamMirrorStatus {
+  ACTIVE
+  ENDED_LEARNED
+  ENDED_ABANDONED
+  ABORTED_REAL_CREDS
+}
+
+model ScamMirrorSession {
+  id                   String            @id @default(uuid()) @db.Uuid
+  userId               String            @db.Uuid
+  tenantId             String?           @db.Uuid
+  persona              ScamMirrorPersona
+  scenario             String
+  /// Array of {turn, role, text, tacticsDetected: string[], at}.
+  turns                Json              @default("[]")
+  /// Cumulative tactic set across turns. Feeds ScamScript Genome
+  /// (Phase 4) when the session ends with ENDED_LEARNED.
+  tacticsObserved      String[]          @default([])
+  status               ScamMirrorStatus  @default(ACTIVE)
+  startedAt            DateTime          @default(now())
+  endedAt              DateTime?
+  endReason            String?
+  guardianPauseEventId String?           @db.Uuid
+  evidenceEventId      String?           @db.Uuid
+  metadata             Json?
+  createdAt            DateTime          @default(now())
+  updatedAt            DateTime          @updatedAt
+
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  guardianPause PauseEvent?    @relation(fields: [guardianPauseEventId], references: [id], onDelete: SetNull)
+  evidenceEvent EvidenceEvent? @relation(fields: [evidenceEventId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([tenantId])
+  @@index([status])
+  @@index([userId, startedAt])
+  @@map("scammirror_sessions")
 }
