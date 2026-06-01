@@ -46,6 +46,7 @@ import { ScamHoldModule } from './modules/scamhold/scamhold.module';
 import { ScamSignalsModule } from './modules/scam-signals/scam-signals.module';
 import { SessionsModule } from './modules/sessions/sessions.module';
 import { TakedownModule } from './modules/takedown/takedown.module';
+import { WalletGuardModule } from './modules/walletguard/walletguard.module';
 import { WebhooksModule } from './modules/webhooks/webhooks.module';
 
 /**
@@ -116,6 +117,7 @@ import { WebhooksModule } from './modules/webhooks/webhooks.module';
     ScamSignalsModule,
     ScamCheckModule,
     ScamHoldModule,
+    WalletGuardModule,
     RegistryModule,
     ReviewQueueModule,
     TakedownModule,

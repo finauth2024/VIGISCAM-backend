@@ -113,11 +113,12 @@ model User {
   freezeLockEvents FreezeLockEvent[]
   alerts           Alert[]
   trustedContacts  TrustedContact[]
-  guardianLinks    GuardianLink[]   @relation("GuardianLinks")
-  protectedByLinks GuardianLink[]   @relation("ProtectedByLinks")
+  guardianLinks    GuardianLink[]    @relation("GuardianLinks")
+  protectedByLinks GuardianLink[]    @relation("ProtectedByLinks")
   pauseEvents      PauseEvent[]
   scamHoldEvents   ScamHoldEvent[]
   giftCardWarnings GiftCardWarning[]
+  walletChecks     WalletCheck[]
 
   @@map("users")
 }
@@ -468,9 +469,10 @@ model EvidenceEvent {
   occurredAt       DateTime
   createdAt        DateTime @default(now())
 
-  pauseEvents       PauseEvent[]
-  scamHoldEvents    ScamHoldEvent[]
-  giftCardWarnings  GiftCardWarning[]
+  pauseEvents      PauseEvent[]
+  scamHoldEvents   ScamHoldEvent[]
+  giftCardWarnings GiftCardWarning[]
+  walletChecks     WalletCheck[]
 
   @@unique([tenantId, sequence])
   @@index([tenantId])
@@ -1652,6 +1654,7 @@ model PauseEvent {
 
   scamHoldEvents   ScamHoldEvent[]
   giftCardWarnings GiftCardWarning[]
+  walletChecks     WalletCheck[]
 
   @@index([userId])
   @@index([tenantId])
@@ -1801,4 +1804,83 @@ model GiftCardWarning {
   @@index([riskLevel])
   @@index([userId, createdAt])
   @@map("giftcard_warnings")
+}
+
+// Phase 9D — WalletGuard AI™. Validates crypto wallet attempts and
+// elevates risk when clipboard-swap / wallet-switch / Identity Graph
+// match / verbal-pressure signals appear.
+enum WalletNetwork {
+  ETH
+  BTC
+  TRX
+  SOL
+  BSC
+  MATIC
+  ARBITRUM
+  OPTIMISM
+  OTHER
+}
+
+enum WalletReputation {
+  UNKNOWN
+  NEW
+  KNOWN_RISKY
+  SUSPICIOUS_WALLET
+  CONFIRMED_SCAM
+}
+
+enum WalletGuardRiskLevel {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum WalletGuardDecision {
+  PENDING
+  VALIDATED
+  BLOCKED
+  ESCALATED_TO_TRUSTED_CONTACT
+  CONTINUED_ANYWAY
+}
+
+model WalletCheck {
+  id                     String               @id @default(uuid()) @db.Uuid
+  userId                 String               @db.Uuid
+  tenantId               String?              @db.Uuid
+  network                WalletNetwork
+  address                String
+  addressValid           Boolean
+  reputation             WalletReputation     @default(UNKNOWN)
+  clipboardSwapDetected  Boolean              @default(false)
+  walletSwitched         Boolean              @default(false)
+  /// 0-100 Identity Collision Graph cluster-match score (9G).
+  graphMatchScore        Int?
+  urgencyDetected        Boolean              @default(false)
+  secrecyDetected        Boolean              @default(false)
+  priorWarningsCount     Int                  @default(0)
+  riskScore              Int
+  riskLevel              WalletGuardRiskLevel
+  riskBreakdown          Json
+  decision               WalletGuardDecision  @default(PENDING)
+  decidedAt              DateTime?
+  decisionNotes          String?
+  guardianPauseEventId   String?              @db.Uuid
+  evidenceEventId        String?              @db.Uuid
+  /// Soft pointer; trusted_contact_reviews lands in 9H.
+  trustedContactReviewId String?              @db.Uuid
+  metadata               Json?
+  createdAt              DateTime             @default(now())
+  updatedAt              DateTime             @updatedAt
+
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  guardianPause PauseEvent?    @relation(fields: [guardianPauseEventId], references: [id], onDelete: SetNull)
+  evidenceEvent EvidenceEvent? @relation(fields: [evidenceEventId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([tenantId])
+  @@index([address])
+  @@index([riskLevel])
+  @@index([userId, createdAt])
+  @@map("wallet_checks")
 }
