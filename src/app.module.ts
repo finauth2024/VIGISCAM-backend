@@ -10,6 +10,7 @@ import { RolesGuard } from './common/auth/roles.guard';
 import { CacheModule } from './common/cache/cache.module';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { PrismaModule } from './common/prisma/prisma.module';
+import { QueueModule } from './common/queue/queue.module';
 import { A1ScamShieldModule } from './modules/a1scamshield/a1scamshield.module';
 import { AgencyFeedsModule } from './modules/agency-feeds/agency-feeds.module';
 import { AiModule } from './modules/ai/ai.module';
@@ -90,6 +91,7 @@ import { WebhooksModule } from './modules/webhooks/webhooks.module';
     }),
     PrismaModule,
     CacheModule,
+    QueueModule,
     EvidenceModule,
     AlertsModule,
     HealthModule,
