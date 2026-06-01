@@ -4,6 +4,7 @@ import { AuthenticatedUser } from '../../common/auth/auth.types';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { EvidenceService } from '../evidence-vault/evidence.service';
 import { GuardianPauseService } from '../guardian-pause/guardian-pause.service';
+import { TrustedContactReviewService } from '../trusted-contact-review/trusted-contact-review.service';
 import { DecideGiftCardDto, GiftCardGuardUserDecision } from './dto/decide-giftcard.dto';
 import { ScanGiftCardDto } from './dto/scan-giftcard.dto';
 import { scoreGiftCardGuard } from './giftcardguard.scoring';
@@ -27,6 +28,7 @@ export class GiftCardGuardService {
     private readonly prisma: PrismaService,
     private readonly evidence: EvidenceService,
     private readonly guardianPause: GuardianPauseService,
+    private readonly trustedContactReview: TrustedContactReviewService,
   ) {}
 
   async scan(user: AuthenticatedUser, dto: ScanGiftCardDto): Promise<GiftCardWarning> {
@@ -154,10 +156,26 @@ export class GiftCardGuardService {
     });
 
     if (dto.decision === GiftCardGuardUserDecision.ESCALATED_TO_TRUSTED_CONTACT) {
-      this.logger.warn(
-        `Gift-card warning ${existing.id} escalated to trusted contact ` +
-          '(9H workflow not yet implemented).',
-      );
+      const review = await this.trustedContactReview.requestReview({
+        user,
+        triggerModule: 'GIFTCARDGUARD',
+        triggerEventId: existing.id,
+        triggerSummary:
+          existing.impersonationType && existing.impersonationType !== 'NONE'
+            ? `Someone claiming ${existing.impersonationType.toLowerCase().replace('_', ' ')} is asking for a gift card`
+            : `Gift card request flagged as ${existing.riskLevel} risk`,
+        metadata: { giftCardWarningId: existing.id },
+      });
+      if (review) {
+        await this.prisma.giftCardWarning.update({
+          where: { id: existing.id },
+          data: { trustedContactReviewId: review.id },
+        });
+      } else {
+        this.logger.warn(
+          `Gift-card warning ${existing.id}: no eligible trusted contact — escalation acknowledged but unrouted`,
+        );
+      }
     }
 
     return updated;

@@ -58,6 +58,19 @@ function makeGuardianPause() {
   };
 }
 
+function makeTcr() {
+  const requested: Array<Record<string, unknown>> = [];
+  return {
+    raw: {
+      requestReview: jest.fn(async (input: Record<string, unknown>) => {
+        requested.push(input);
+        return { id: `tcr-${requested.length}` };
+      }),
+    } as never,
+    requested,
+  };
+}
+
 const USER = {
   userId: 'user-1',
   email: 'u@example.com',
@@ -69,7 +82,7 @@ describe('ClaimVerifyService.verify', () => {
   it('a JOB claim with no signals is LOW, no Guardian Pause', async () => {
     const prisma = makePrisma({});
     const gp = makeGuardianPause();
-    const svc = new ClaimVerifyService(prisma.raw, makeEvidence().raw, gp.raw);
+    const svc = new ClaimVerifyService(prisma.raw, makeEvidence().raw, gp.raw, makeTcr().raw);
 
     await svc.verify(USER, {
       claimType: 'JOB',
@@ -87,7 +100,7 @@ describe('ClaimVerifyService.verify', () => {
     const prisma = makePrisma({});
     const gp = makeGuardianPause();
     const evidence = makeEvidence();
-    const svc = new ClaimVerifyService(prisma.raw, evidence.raw, gp.raw);
+    const svc = new ClaimVerifyService(prisma.raw, evidence.raw, gp.raw, makeTcr().raw);
 
     await svc.verify(USER, {
       claimType: 'ROMANCE',
@@ -112,7 +125,12 @@ describe('ClaimVerifyService.verify', () => {
 
   it('feeds prior CONTINUED_ANYWAY count into the score', async () => {
     const prisma = makePrisma({ priorContinueCount: 3 });
-    const svc = new ClaimVerifyService(prisma.raw, makeEvidence().raw, makeGuardianPause().raw);
+    const svc = new ClaimVerifyService(
+      prisma.raw,
+      makeEvidence().raw,
+      makeGuardianPause().raw,
+      makeTcr().raw,
+    );
 
     await svc.verify(USER, {
       claimType: 'INVESTMENT',
@@ -124,7 +142,12 @@ describe('ClaimVerifyService.verify', () => {
 
   it('persists scamPhraseScore + domainAgeDays when provided', async () => {
     const prisma = makePrisma({});
-    const svc = new ClaimVerifyService(prisma.raw, makeEvidence().raw, makeGuardianPause().raw);
+    const svc = new ClaimVerifyService(
+      prisma.raw,
+      makeEvidence().raw,
+      makeGuardianPause().raw,
+      makeTcr().raw,
+    );
     await svc.verify(USER, {
       claimType: 'OIL_PROJECT',
       subject: { website: 'oil-project.test' },
@@ -144,6 +167,7 @@ describe('ClaimVerifyService.decide', () => {
       makePrisma({ existing: null }).raw,
       makeEvidence().raw,
       makeGuardianPause().raw,
+      makeTcr().raw,
     );
     await expect(
       svc.decide(USER, 'nope', { decision: ClaimVerifyUserDecision.TRUSTED }),
@@ -157,6 +181,7 @@ describe('ClaimVerifyService.decide', () => {
       }).raw,
       makeEvidence().raw,
       makeGuardianPause().raw,
+      makeTcr().raw,
     );
     await expect(
       svc.decide(USER, 'claim-1', { decision: ClaimVerifyUserDecision.TRUSTED }),
@@ -168,7 +193,12 @@ describe('ClaimVerifyService.decide', () => {
       existing: { id: 'claim-1', decision: 'PENDING' },
     });
     const evidence = makeEvidence();
-    const svc = new ClaimVerifyService(prisma.raw, evidence.raw, makeGuardianPause().raw);
+    const svc = new ClaimVerifyService(
+      prisma.raw,
+      evidence.raw,
+      makeGuardianPause().raw,
+      makeTcr().raw,
+    );
 
     await svc.decide(USER, 'claim-1', {
       decision: ClaimVerifyUserDecision.REJECTED,

@@ -58,6 +58,19 @@ function makeGuardianPause() {
   };
 }
 
+function makeTcr() {
+  const requested: Array<Record<string, unknown>> = [];
+  return {
+    raw: {
+      requestReview: jest.fn(async (input: Record<string, unknown>) => {
+        requested.push(input);
+        return { id: `tcr-${requested.length}` };
+      }),
+    } as never,
+    requested,
+  };
+}
+
 const USER = {
   userId: 'user-1',
   email: 'u@example.com',
@@ -71,7 +84,7 @@ describe('WalletGuardService.check', () => {
   it('a clean ETH address with no signals is LOW, no Guardian Pause', async () => {
     const prisma = makePrisma({});
     const gp = makeGuardianPause();
-    const svc = new WalletGuardService(prisma.raw, makeEvidence().raw, gp.raw);
+    const svc = new WalletGuardService(prisma.raw, makeEvidence().raw, gp.raw, makeTcr().raw);
 
     await svc.check(USER, { network: 'ETH', address: GOOD_ETH });
 
@@ -85,7 +98,7 @@ describe('WalletGuardService.check', () => {
   it('a malformed address goes straight to CRITICAL and pulls Guardian Pause', async () => {
     const prisma = makePrisma({});
     const gp = makeGuardianPause();
-    const svc = new WalletGuardService(prisma.raw, makeEvidence().raw, gp.raw);
+    const svc = new WalletGuardService(prisma.raw, makeEvidence().raw, gp.raw, makeTcr().raw);
 
     await svc.check(USER, { network: 'ETH', address: '0xdeadbeef' });
 
@@ -104,7 +117,7 @@ describe('WalletGuardService.check', () => {
   it('clipboard swap on a valid address tips toward HIGH and triggers a WALLET_SWITCH pause', async () => {
     const prisma = makePrisma({});
     const gp = makeGuardianPause();
-    const svc = new WalletGuardService(prisma.raw, makeEvidence().raw, gp.raw);
+    const svc = new WalletGuardService(prisma.raw, makeEvidence().raw, gp.raw, makeTcr().raw);
 
     await svc.check(USER, {
       network: 'ETH',
@@ -122,7 +135,7 @@ describe('WalletGuardService.check', () => {
   it('CONFIRMED_SCAM reputation alone pulls a HIGH pause', async () => {
     const prisma = makePrisma({});
     const gp = makeGuardianPause();
-    const svc = new WalletGuardService(prisma.raw, makeEvidence().raw, gp.raw);
+    const svc = new WalletGuardService(prisma.raw, makeEvidence().raw, gp.raw, makeTcr().raw);
 
     await svc.check(USER, {
       network: 'ETH',
@@ -136,7 +149,12 @@ describe('WalletGuardService.check', () => {
 
   it('trims surrounding whitespace before persisting', async () => {
     const prisma = makePrisma({});
-    const svc = new WalletGuardService(prisma.raw, makeEvidence().raw, makeGuardianPause().raw);
+    const svc = new WalletGuardService(
+      prisma.raw,
+      makeEvidence().raw,
+      makeGuardianPause().raw,
+      makeTcr().raw,
+    );
     await svc.check(USER, { network: 'ETH', address: '  ' + GOOD_ETH + '  ' });
     expect(prisma.created[0].address).toBe(GOOD_ETH);
   });
@@ -148,6 +166,7 @@ describe('WalletGuardService.decide', () => {
       makePrisma({ existing: null }).raw,
       makeEvidence().raw,
       makeGuardianPause().raw,
+      makeTcr().raw,
     );
     await expect(
       svc.decide(USER, 'nope', { decision: WalletGuardUserDecision.VALIDATED }),
@@ -159,6 +178,7 @@ describe('WalletGuardService.decide', () => {
       makePrisma({ existing: { id: 'check-1', decision: 'BLOCKED' } }).raw,
       makeEvidence().raw,
       makeGuardianPause().raw,
+      makeTcr().raw,
     );
     await expect(
       svc.decide(USER, 'check-1', { decision: WalletGuardUserDecision.VALIDATED }),
@@ -170,7 +190,12 @@ describe('WalletGuardService.decide', () => {
       existing: { id: 'check-1', decision: 'PENDING' },
     });
     const evidence = makeEvidence();
-    const svc = new WalletGuardService(prisma.raw, evidence.raw, makeGuardianPause().raw);
+    const svc = new WalletGuardService(
+      prisma.raw,
+      evidence.raw,
+      makeGuardianPause().raw,
+      makeTcr().raw,
+    );
 
     await svc.decide(USER, 'check-1', {
       decision: WalletGuardUserDecision.BLOCKED,

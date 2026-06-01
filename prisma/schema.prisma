@@ -112,15 +112,16 @@ model User {
   riskEvents       RiskEvent[]
   freezeLockEvents FreezeLockEvent[]
   alerts           Alert[]
-  trustedContacts    TrustedContact[]
-  guardianLinks      GuardianLink[]      @relation("GuardianLinks")
-  protectedByLinks   GuardianLink[]      @relation("ProtectedByLinks")
-  pauseEvents        PauseEvent[]
-  scamHoldEvents     ScamHoldEvent[]
-  giftCardWarnings   GiftCardWarning[]
-  walletChecks       WalletCheck[]
-  claimVerifications ClaimVerification[]
-  scamMirrorSessions ScamMirrorSession[]
+  trustedContacts       TrustedContact[]
+  guardianLinks         GuardianLink[]         @relation("GuardianLinks")
+  protectedByLinks      GuardianLink[]         @relation("ProtectedByLinks")
+  pauseEvents           PauseEvent[]
+  scamHoldEvents        ScamHoldEvent[]
+  giftCardWarnings      GiftCardWarning[]
+  walletChecks          WalletCheck[]
+  claimVerifications    ClaimVerification[]
+  scamMirrorSessions    ScamMirrorSession[]
+  trustedContactReviews TrustedContactReview[]
 
   @@map("users")
 }
@@ -405,8 +406,9 @@ model TrustedContact {
   createdAt                 DateTime             @default(now())
   updatedAt                 DateTime             @updatedAt
 
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user    User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tenant  Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  reviews TrustedContactReview[]
 
   @@index([userId])
   @@index([tenantId])
@@ -471,12 +473,13 @@ model EvidenceEvent {
   occurredAt       DateTime
   createdAt        DateTime @default(now())
 
-  pauseEvents        PauseEvent[]
-  scamHoldEvents     ScamHoldEvent[]
-  giftCardWarnings   GiftCardWarning[]
-  walletChecks       WalletCheck[]
-  claimVerifications ClaimVerification[]
-  scamMirrorSessions ScamMirrorSession[]
+  pauseEvents           PauseEvent[]
+  scamHoldEvents        ScamHoldEvent[]
+  giftCardWarnings      GiftCardWarning[]
+  walletChecks          WalletCheck[]
+  claimVerifications    ClaimVerification[]
+  scamMirrorSessions    ScamMirrorSession[]
+  trustedContactReviews TrustedContactReview[]
 
   @@unique([tenantId, sequence])
   @@index([tenantId])
@@ -2049,4 +2052,69 @@ model ScamMirrorSession {
   @@index([status])
   @@index([userId, startedAt])
   @@map("scammirror_sessions")
+}
+
+// Phase 9H — trusted-contact review workflow. Wires every
+// ESCALATED_TO_TRUSTED_CONTACT outcome from 9B/9C/9D/9E (and Guardian
+// Pause's CRITICAL path) into a real review→decision flow.
+enum TrustedContactReviewTriggerModule {
+  GUARDIAN_PAUSE
+  SCAMHOLD
+  GIFTCARDGUARD
+  WALLETGUARD
+  CLAIMVERIFY
+  SCAMMIRROR
+}
+
+enum TrustedContactReviewStatus {
+  PENDING
+  DECIDED
+  EXPIRED
+  CANCELLED
+}
+
+enum TrustedContactReviewDecision {
+  APPROVE_AFTER_VERIFICATION
+  REJECT_HIGH_RISK
+  NEED_MORE_INFORMATION
+  CALL_USER_IMMEDIATELY
+  ESCALATE_TO_BANK_OR_AGENCY
+}
+
+model TrustedContactReview {
+  id                    String                            @id @default(uuid()) @db.Uuid
+  userId                String                            @db.Uuid
+  tenantId              String?                           @db.Uuid
+  contactId             String                            @db.Uuid
+  triggerModule         TrustedContactReviewTriggerModule
+  /// Soft pointer to the row in the triggering module's table
+  /// (scamhold_events.id, claim_verifications.id, etc.). Not a hard FK
+  /// because the table varies per module.
+  triggerEventId        String                            @db.Uuid
+  /// Public-safe summary the trusted contact sees in the notification.
+  /// Never the raw event metadata; just a status-based description.
+  triggerSummary        String
+  status                TrustedContactReviewStatus        @default(PENDING)
+  requestedAt           DateTime                          @default(now())
+  decidedAt             DateTime?
+  decision              TrustedContactReviewDecision?
+  decisionNotes         String?
+  /// One-time token mailed to the contact so the decision call can be
+  /// authenticated without the contact holding a VIGISCAM account.
+  decidedByContactToken String?
+  evidenceEventId       String?                           @db.Uuid
+  metadata              Json?
+  createdAt             DateTime                          @default(now())
+  updatedAt             DateTime                          @updatedAt
+
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  contact       TrustedContact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  evidenceEvent EvidenceEvent? @relation(fields: [evidenceEventId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([tenantId])
+  @@index([contactId])
+  @@index([status])
+  @@index([triggerModule, triggerEventId])
+  @@map("trusted_contact_reviews")
 }

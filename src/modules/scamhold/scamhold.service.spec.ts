@@ -58,6 +58,21 @@ function makeGuardianPause() {
   };
 }
 
+function makeTcr() {
+  // No test in this file exercises the SEND_TO_TRUSTED_CONTACT path,
+  // so the mock just exists to satisfy the constructor signature.
+  const requested: Array<Record<string, unknown>> = [];
+  return {
+    raw: {
+      requestReview: jest.fn(async (input: Record<string, unknown>) => {
+        requested.push(input);
+        return { id: `tcr-${requested.length}` };
+      }),
+    } as never,
+    requested,
+  };
+}
+
 const USER = {
   userId: 'user-1',
   email: 'u@example.com',
@@ -70,7 +85,7 @@ describe('ScamHoldService.check', () => {
     const prisma = makePrisma({});
     const evidence = makeEvidence();
     const gp = makeGuardianPause();
-    const svc = new ScamHoldService(prisma.raw, evidence.raw, gp.raw);
+    const svc = new ScamHoldService(prisma.raw, evidence.raw, gp.raw, makeTcr().raw);
 
     const row = await svc.check(USER, {
       transactionType: 'BANK_TRANSFER',
@@ -100,7 +115,7 @@ describe('ScamHoldService.check', () => {
   it('on CRITICAL risk, pulls Guardian Pause and stores its id on the row', async () => {
     const prisma = makePrisma({});
     const gp = makeGuardianPause();
-    const svc = new ScamHoldService(prisma.raw, makeEvidence().raw, gp.raw);
+    const svc = new ScamHoldService(prisma.raw, makeEvidence().raw, gp.raw, makeTcr().raw);
 
     await svc.check(USER, {
       transactionType: 'CRYPTO',
@@ -128,7 +143,12 @@ describe('ScamHoldService.check', () => {
 
   it('feeds prior CONTINUE_ANYWAY count into the scorer', async () => {
     const prisma = makePrisma({ priorContinueCount: 4 });
-    const svc = new ScamHoldService(prisma.raw, makeEvidence().raw, makeGuardianPause().raw);
+    const svc = new ScamHoldService(
+      prisma.raw,
+      makeEvidence().raw,
+      makeGuardianPause().raw,
+      makeTcr().raw,
+    );
 
     await svc.check(USER, {
       transactionType: 'ONLINE_PAYMENT',
@@ -151,6 +171,7 @@ describe('ScamHoldService.decide', () => {
       makePrisma({ existing: null }).raw,
       makeEvidence().raw,
       makeGuardianPause().raw,
+      makeTcr().raw,
     );
     await expect(svc.decide(USER, 'nope', { decision: ScamHoldDecision.BLOCK })).rejects.toThrow(
       NotFoundException,
@@ -164,6 +185,7 @@ describe('ScamHoldService.decide', () => {
       }).raw,
       makeEvidence().raw,
       makeGuardianPause().raw,
+      makeTcr().raw,
     );
     await expect(svc.decide(USER, 'hold-1', { decision: ScamHoldDecision.BLOCK })).rejects.toThrow(
       BadRequestException,
@@ -175,7 +197,12 @@ describe('ScamHoldService.decide', () => {
       existing: { id: 'hold-1', status: 'PENDING' },
     });
     const evidence = makeEvidence();
-    const svc = new ScamHoldService(prisma.raw, evidence.raw, makeGuardianPause().raw);
+    const svc = new ScamHoldService(
+      prisma.raw,
+      evidence.raw,
+      makeGuardianPause().raw,
+      makeTcr().raw,
+    );
 
     await svc.decide(USER, 'hold-1', {
       decision: ScamHoldDecision.BLOCK,
@@ -196,7 +223,12 @@ describe('ScamHoldService.decide', () => {
       existing: { id: 'hold-1', status: 'PENDING' },
     });
     const evidence = makeEvidence();
-    const svc = new ScamHoldService(prisma.raw, evidence.raw, makeGuardianPause().raw);
+    const svc = new ScamHoldService(
+      prisma.raw,
+      evidence.raw,
+      makeGuardianPause().raw,
+      makeTcr().raw,
+    );
     await svc.decide(USER, 'hold-1', {
       decision: ScamHoldDecision.CONTINUE_ANYWAY,
     });

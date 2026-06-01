@@ -49,6 +49,7 @@ import { ScamMirrorModule } from './modules/scammirror/scammirror.module';
 import { ScamSignalsModule } from './modules/scam-signals/scam-signals.module';
 import { SessionsModule } from './modules/sessions/sessions.module';
 import { TakedownModule } from './modules/takedown/takedown.module';
+import { TrustedContactReviewModule } from './modules/trusted-contact-review/trusted-contact-review.module';
 import { WalletGuardModule } from './modules/walletguard/walletguard.module';
 import { WebhooksModule } from './modules/webhooks/webhooks.module';
 
@@ -125,6 +126,7 @@ import { WebhooksModule } from './modules/webhooks/webhooks.module';
     RegistryModule,
     ReviewQueueModule,
     TakedownModule,
+    TrustedContactReviewModule,
     InternalAdminModule,
     NotificationsModule,
     ClusteringModule,

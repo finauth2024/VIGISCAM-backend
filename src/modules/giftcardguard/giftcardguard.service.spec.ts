@@ -58,6 +58,19 @@ function makeGuardianPause() {
   };
 }
 
+function makeTcr() {
+  const requested: Array<Record<string, unknown>> = [];
+  return {
+    raw: {
+      requestReview: jest.fn(async (input: Record<string, unknown>) => {
+        requested.push(input);
+        return { id: `tcr-${requested.length}` };
+      }),
+    } as never,
+    requested,
+  };
+}
+
 const USER = {
   userId: 'user-1',
   email: 'u@example.com',
@@ -70,7 +83,7 @@ describe('GiftCardGuardService.scan', () => {
     const prisma = makePrisma({});
     const evidence = makeEvidence();
     const gp = makeGuardianPause();
-    const svc = new GiftCardGuardService(prisma.raw, evidence.raw, gp.raw);
+    const svc = new GiftCardGuardService(prisma.raw, evidence.raw, gp.raw, makeTcr().raw);
 
     const row = await svc.scan(USER, {
       cardBrand: 'Amazon',
@@ -97,7 +110,7 @@ describe('GiftCardGuardService.scan', () => {
   it('on HIGH risk (code reveal + impersonation), pulls Guardian Pause', async () => {
     const prisma = makePrisma({});
     const gp = makeGuardianPause();
-    const svc = new GiftCardGuardService(prisma.raw, makeEvidence().raw, gp.raw);
+    const svc = new GiftCardGuardService(prisma.raw, makeEvidence().raw, gp.raw, makeTcr().raw);
 
     await svc.scan(USER, {
       codeRevealRequested: true,
@@ -120,7 +133,7 @@ describe('GiftCardGuardService.scan', () => {
   it('on CRITICAL risk, pulls Guardian Pause with riskLevel CRITICAL', async () => {
     const prisma = makePrisma({});
     const gp = makeGuardianPause();
-    const svc = new GiftCardGuardService(prisma.raw, makeEvidence().raw, gp.raw);
+    const svc = new GiftCardGuardService(prisma.raw, makeEvidence().raw, gp.raw, makeTcr().raw);
 
     await svc.scan(USER, {
       codeRevealRequested: true,
@@ -137,7 +150,12 @@ describe('GiftCardGuardService.scan', () => {
 
   it('feeds prior CONTINUED_ANYWAY count into the score', async () => {
     const prisma = makePrisma({ priorContinueCount: 4 });
-    const svc = new GiftCardGuardService(prisma.raw, makeEvidence().raw, makeGuardianPause().raw);
+    const svc = new GiftCardGuardService(
+      prisma.raw,
+      makeEvidence().raw,
+      makeGuardianPause().raw,
+      makeTcr().raw,
+    );
 
     await svc.scan(USER, {});
 
@@ -155,6 +173,7 @@ describe('GiftCardGuardService.decide', () => {
       makePrisma({ existing: null }).raw,
       makeEvidence().raw,
       makeGuardianPause().raw,
+      makeTcr().raw,
     );
     await expect(
       svc.decide(USER, 'nope', {
@@ -170,6 +189,7 @@ describe('GiftCardGuardService.decide', () => {
       }).raw,
       makeEvidence().raw,
       makeGuardianPause().raw,
+      makeTcr().raw,
     );
     await expect(
       svc.decide(USER, 'warn-1', {
@@ -183,7 +203,12 @@ describe('GiftCardGuardService.decide', () => {
       existing: { id: 'warn-1', decision: 'PENDING' },
     });
     const evidence = makeEvidence();
-    const svc = new GiftCardGuardService(prisma.raw, evidence.raw, makeGuardianPause().raw);
+    const svc = new GiftCardGuardService(
+      prisma.raw,
+      evidence.raw,
+      makeGuardianPause().raw,
+      makeTcr().raw,
+    );
 
     await svc.decide(USER, 'warn-1', {
       decision: GiftCardGuardUserDecision.AVOIDED,
@@ -203,7 +228,12 @@ describe('GiftCardGuardService.decide', () => {
     const prisma = makePrisma({
       existing: { id: 'warn-1', decision: 'PENDING' },
     });
-    const svc = new GiftCardGuardService(prisma.raw, makeEvidence().raw, makeGuardianPause().raw);
+    const svc = new GiftCardGuardService(
+      prisma.raw,
+      makeEvidence().raw,
+      makeGuardianPause().raw,
+      makeTcr().raw,
+    );
     await svc.decide(USER, 'warn-1', {
       decision: GiftCardGuardUserDecision.ESCALATED_TO_TRUSTED_CONTACT,
     });

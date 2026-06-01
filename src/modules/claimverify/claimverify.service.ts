@@ -4,6 +4,7 @@ import { AuthenticatedUser } from '../../common/auth/auth.types';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { EvidenceService } from '../evidence-vault/evidence.service';
 import { GuardianPauseService } from '../guardian-pause/guardian-pause.service';
+import { TrustedContactReviewService } from '../trusted-contact-review/trusted-contact-review.service';
 import { ClaimVerifyUserDecision, DecideClaimDto } from './dto/decide-claim.dto';
 import { VerifyClaimDto } from './dto/verify-claim.dto';
 import { scoreClaimVerify } from './claimverify.scoring';
@@ -24,6 +25,7 @@ export class ClaimVerifyService {
     private readonly prisma: PrismaService,
     private readonly evidence: EvidenceService,
     private readonly guardianPause: GuardianPauseService,
+    private readonly trustedContactReview: TrustedContactReviewService,
   ) {}
 
   async verify(user: AuthenticatedUser, dto: VerifyClaimDto): Promise<ClaimVerification> {
@@ -158,10 +160,25 @@ export class ClaimVerifyService {
     });
 
     if (dto.decision === ClaimVerifyUserDecision.ESCALATED_TO_TRUSTED_CONTACT) {
-      this.logger.warn(
-        `Claim verification ${existing.id} escalated to trusted contact ` +
-          '(9H workflow not yet implemented).',
-      );
+      const review = await this.trustedContactReview.requestReview({
+        user,
+        triggerModule: 'CLAIMVERIFY',
+        triggerEventId: existing.id,
+        triggerSummary:
+          `Claim of type ${existing.claimType.toLowerCase().replace('_', ' ')} ` +
+          `flagged as ${existing.riskLevel} risk`,
+        metadata: { claimVerificationId: existing.id },
+      });
+      if (review) {
+        await this.prisma.claimVerification.update({
+          where: { id: existing.id },
+          data: { trustedContactReviewId: review.id },
+        });
+      } else {
+        this.logger.warn(
+          `Claim verification ${existing.id}: no eligible trusted contact — escalation acknowledged but unrouted`,
+        );
+      }
     }
 
     return updated;

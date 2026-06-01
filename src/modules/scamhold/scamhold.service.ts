@@ -4,6 +4,7 @@ import { AuthenticatedUser } from '../../common/auth/auth.types';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { EvidenceService } from '../evidence-vault/evidence.service';
 import { GuardianPauseService } from '../guardian-pause/guardian-pause.service';
+import { TrustedContactReviewService } from '../trusted-contact-review/trusted-contact-review.service';
 import { CheckScamHoldDto } from './dto/check-scamhold.dto';
 import { DecideScamHoldDto, ScamHoldDecision } from './dto/decide-scamhold.dto';
 import { scoreScamHold } from './scamhold.scoring';
@@ -29,6 +30,7 @@ export class ScamHoldService {
     private readonly prisma: PrismaService,
     private readonly evidence: EvidenceService,
     private readonly guardianPause: GuardianPauseService,
+    private readonly trustedContactReview: TrustedContactReviewService,
   ) {}
 
   async check(user: AuthenticatedUser, dto: CheckScamHoldDto): Promise<ScamHoldEvent> {
@@ -157,12 +159,27 @@ export class ScamHoldService {
       metadata: { decision: dto.decision, notes: dto.notes ?? null },
     });
 
-    // SEND_TO_TRUSTED_CONTACT → trigger 9H workflow (TODO until 9H ships).
+    // SEND_TO_TRUSTED_CONTACT → open a 9H review and fan-out notifications.
     if (dto.decision === ScamHoldDecision.SEND_TO_TRUSTED_CONTACT) {
-      this.logger.warn(
-        `ScamHold ${existing.id} requires trusted-contact review ` +
-          '(workflow lands in 9H — not enforced yet).',
-      );
+      const review = await this.trustedContactReview.requestReview({
+        user,
+        triggerModule: 'SCAMHOLD',
+        triggerEventId: existing.id,
+        triggerSummary:
+          `${existing.transactionType.replace('_', ' ')} for ` +
+          `${existing.recipient} flagged as ${existing.riskLevel} risk`,
+        metadata: { scamHoldEventId: existing.id },
+      });
+      if (review) {
+        await this.prisma.scamHoldEvent.update({
+          where: { id: existing.id },
+          data: { trustedContactReviewId: review.id },
+        });
+      } else {
+        this.logger.warn(
+          `ScamHold ${existing.id}: no eligible trusted contact — escalation acknowledged but unrouted`,
+        );
+      }
     }
 
     return updated;

@@ -4,6 +4,7 @@ import { AuthenticatedUser } from '../../common/auth/auth.types';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { EvidenceService } from '../evidence-vault/evidence.service';
 import { GuardianPauseService } from '../guardian-pause/guardian-pause.service';
+import { TrustedContactReviewService } from '../trusted-contact-review/trusted-contact-review.service';
 import { isAddressValid } from './address-validators';
 import { CheckWalletDto } from './dto/check-wallet.dto';
 import { DecideWalletDto, WalletGuardUserDecision } from './dto/decide-wallet.dto';
@@ -27,6 +28,7 @@ export class WalletGuardService {
     private readonly prisma: PrismaService,
     private readonly evidence: EvidenceService,
     private readonly guardianPause: GuardianPauseService,
+    private readonly trustedContactReview: TrustedContactReviewService,
   ) {}
 
   async check(user: AuthenticatedUser, dto: CheckWalletDto): Promise<WalletCheck> {
@@ -164,10 +166,23 @@ export class WalletGuardService {
     });
 
     if (dto.decision === WalletGuardUserDecision.ESCALATED_TO_TRUSTED_CONTACT) {
-      this.logger.warn(
-        `Wallet check ${existing.id} escalated to trusted contact ` +
-          '(9H workflow not yet implemented).',
-      );
+      const review = await this.trustedContactReview.requestReview({
+        user,
+        triggerModule: 'WALLETGUARD',
+        triggerEventId: existing.id,
+        triggerSummary: `${existing.network} wallet flagged as ${existing.riskLevel} risk`,
+        metadata: { walletCheckId: existing.id },
+      });
+      if (review) {
+        await this.prisma.walletCheck.update({
+          where: { id: existing.id },
+          data: { trustedContactReviewId: review.id },
+        });
+      } else {
+        this.logger.warn(
+          `Wallet check ${existing.id}: no eligible trusted contact — escalation acknowledged but unrouted`,
+        );
+      }
     }
 
     return updated;
