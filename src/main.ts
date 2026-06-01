@@ -5,6 +5,7 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import helmet from 'helmet';
 import { Logger } from 'nestjs-pino';
 import { AppModule } from './app.module';
+import { buildCorsMatchers, isOriginAllowed } from './common/cors/cors-matcher';
 
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
@@ -22,9 +23,19 @@ async function bootstrap(): Promise<void> {
   // Security headers.
   app.use(helmet());
 
-  // CORS — only the explicitly allowed origins (the Vercel frontend).
+  // CORS — only explicitly allowed origins. `CORS_ORIGINS` is comma-separated;
+  // entries containing `*` are matched as globs (see common/cors/cors-matcher),
+  // so a single entry like `https://*.vercel.app` covers every Vercel preview
+  // deploy without the env var being updated per branch.
+  const corsMatchers = buildCorsMatchers(corsOrigins);
   app.enableCors({
-    origin: corsOrigins.length > 0 ? corsOrigins : false,
+    origin: (
+      origin: string | undefined,
+      callback: (err: Error | null, allow?: boolean) => void,
+    ): void => {
+      const allowed = isOriginAllowed(corsMatchers, origin);
+      callback(allowed ? null : new Error('Not allowed by CORS'), allowed);
+    },
     credentials: true,
   });
 
