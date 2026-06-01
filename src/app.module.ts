@@ -27,6 +27,7 @@ import { FamiliesModule } from './modules/families/families.module';
 import { FraudGraphModule } from './modules/fraud-graph/fraud-graph.module';
 import { FreezeGuardModule } from './modules/freezeguard/freezeguard.module';
 import { FreezeLockModule } from './modules/freezelock/freezelock.module';
+import { GiftCardGuardModule } from './modules/giftcardguard/giftcardguard.module';
 import { GuardianPauseModule } from './modules/guardian-pause/guardian-pause.module';
 import { HealthModule } from './modules/health/health.module';
 import { IntelligenceMetricsModule } from './modules/intelligence-metrics/intelligence-metrics.module';
@@ -107,6 +108,7 @@ import { WebhooksModule } from './modules/webhooks/webhooks.module';
     SessionsModule,
     FreezeLockModule,
     GuardianPauseModule,
+    GiftCardGuardModule,
     RiskModule,
     FreezeGuardModule,
     A1ScamShieldModule,
