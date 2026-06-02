@@ -89,7 +89,7 @@ function makeEvidence() {
 
 function makeBilling(
   sub: Record<string, unknown> = {
-    plan: 'ENTERPRISE',
+    plan: 'PREMIUM_SHIELD',
     status: 'MANUAL',
     stripeConfigured: false,
     manualInvoice: true,
@@ -253,7 +253,7 @@ describe('EnterprisePortalService.auditLog + billing', () => {
     expect(out).toMatchObject({
       provider: 'STRIPE',
       providerActive: false,
-      plan: 'ENTERPRISE',
+      plan: 'PREMIUM_SHIELD',
       status: 'MANUAL',
       manualInvoice: true,
       manageVia: 'POST /api/v1/billing/portal',

@@ -98,13 +98,18 @@ class EnvironmentVariables {
   @IsString()
   STRIPE_WEBHOOK_SECRET?: string;
 
+  // Stripe price ids per product (BASIC / FAMILY_GUARDIAN / PREMIUM_SHIELD).
   @IsOptional()
   @IsString()
-  STRIPE_PRICE_PRO?: string;
+  STRIPE_PRICE_BASIC?: string;
 
   @IsOptional()
   @IsString()
-  STRIPE_PRICE_ENTERPRISE?: string;
+  STRIPE_PRICE_FAMILY_GUARDIAN?: string;
+
+  @IsOptional()
+  @IsString()
+  STRIPE_PRICE_PREMIUM_SHIELD?: string;
 
   // Public base URL the billing checkout/portal redirects back to.
   @IsOptional()

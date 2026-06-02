@@ -1,5 +1,5 @@
 import { SetMetadata } from '@nestjs/common';
-import { PartnerApiKeyPlan } from '@prisma/client';
+import { BillingPlan } from './billing-plans';
 
 export const REQUIRE_PLAN_KEY = 'require_plan';
 
@@ -11,4 +11,4 @@ export const REQUIRE_PLAN_KEY = 'require_plan';
  * Tier order: FREE < PRO < ENTERPRISE. A route marked @RequirePlan('PRO')
  * admits PRO and ENTERPRISE tenants.
  */
-export const RequirePlan = (plan: PartnerApiKeyPlan) => SetMetadata(REQUIRE_PLAN_KEY, plan);
+export const RequirePlan = (plan: BillingPlan) => SetMetadata(REQUIRE_PLAN_KEY, plan);

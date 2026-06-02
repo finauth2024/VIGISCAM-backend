@@ -110,7 +110,7 @@ describe('BillingService.getSubscription', () => {
     const svc = new BillingService(
       makePrisma({
         subscriptionRow: {
-          plan: 'PRO',
+          plan: 'BASIC',
           status: 'ACTIVE',
           stripeCustomerId: 'cus_x',
           manualInvoice: false,
@@ -121,7 +121,7 @@ describe('BillingService.getSubscription', () => {
       makeConfig().raw,
     );
     const out = await svc.getSubscription('tenant-A');
-    expect(out).toMatchObject({ plan: 'PRO', status: 'ACTIVE', stripeConfigured: true });
+    expect(out).toMatchObject({ plan: 'BASIC', status: 'ACTIVE', stripeConfigured: true });
   });
 });
 
@@ -138,7 +138,7 @@ describe('BillingService.resolveEffectivePlan', () => {
 
   it('returns FREE when the plan is set but the status is not entitled', async () => {
     const svc = new BillingService(
-      makePrisma({ subscriptionRow: { plan: 'PRO', status: 'PAST_DUE' } }).raw,
+      makePrisma({ subscriptionRow: { plan: 'BASIC', status: 'PAST_DUE' } }).raw,
       makeStripe().raw,
       makeEvidence().raw,
       makeConfig().raw,
@@ -148,12 +148,12 @@ describe('BillingService.resolveEffectivePlan', () => {
 
   it('returns the plan when the status is entitled', async () => {
     const svc = new BillingService(
-      makePrisma({ subscriptionRow: { plan: 'ENTERPRISE', status: 'MANUAL' } }).raw,
+      makePrisma({ subscriptionRow: { plan: 'PREMIUM_SHIELD', status: 'MANUAL' } }).raw,
       makeStripe().raw,
       makeEvidence().raw,
       makeConfig().raw,
     );
-    expect(await svc.resolveEffectivePlan('tenant-A')).toBe('ENTERPRISE');
+    expect(await svc.resolveEffectivePlan('tenant-A')).toBe('PREMIUM_SHIELD');
   });
 });
 
@@ -170,14 +170,14 @@ describe('BillingService.startCheckout', () => {
     );
   });
 
-  it('rejects PRO in live mode when no price id is configured', async () => {
+  it('rejects BASIC in live mode when no price id is configured', async () => {
     const svc = new BillingService(
       makePrisma().raw,
       makeStripe(true).raw, // configured
       makeEvidence().raw,
-      makeConfig({}).raw, // no STRIPE_PRICE_PRO
+      makeConfig({}).raw, // no STRIPE_PRICE_BASIC
     );
-    await expect(svc.startCheckout(USER, { plan: 'PRO' } as never)).rejects.toThrow(
+    await expect(svc.startCheckout(USER, { plan: 'BASIC' } as never)).rejects.toThrow(
       BadRequestException,
     );
   });
@@ -191,7 +191,7 @@ describe('BillingService.startCheckout', () => {
       evidence.raw,
       makeConfig().raw,
     );
-    const out = await svc.startCheckout(USER, { plan: 'PRO' } as never);
+    const out = await svc.startCheckout(USER, { plan: 'BASIC' } as never);
     expect(out.checkoutUrl).toContain('stub.billing.local');
     expect(prisma.upserts.length).toBeGreaterThanOrEqual(1);
     expect(evidence.appended[0]).toMatchObject({ eventType: 'BILLING_CHECKOUT_STARTED' });
@@ -207,7 +207,7 @@ describe('BillingService.setManualInvoice', () => {
       makeConfig().raw,
     );
     await expect(
-      svc.setManualInvoice(USER, 'tenant-X', { plan: 'ENTERPRISE' } as never),
+      svc.setManualInvoice(USER, 'tenant-X', { plan: 'PREMIUM_SHIELD' } as never),
     ).rejects.toThrow(BadRequestException);
   });
 
@@ -215,9 +215,12 @@ describe('BillingService.setManualInvoice', () => {
     const prisma = makePrisma({ tenantRow: { id: 'tenant-A', name: 'Acme' } });
     const evidence = makeEvidence();
     const svc = new BillingService(prisma.raw, makeStripe().raw, evidence.raw, makeConfig().raw);
-    await svc.setManualInvoice(USER, 'tenant-A', { plan: 'ENTERPRISE', note: 'PO-123' } as never);
+    await svc.setManualInvoice(USER, 'tenant-A', {
+      plan: 'PREMIUM_SHIELD',
+      note: 'PO-123',
+    } as never);
     expect(prisma.upserts[0].create).toMatchObject({
-      plan: 'ENTERPRISE',
+      plan: 'PREMIUM_SHIELD',
       status: 'MANUAL',
       manualInvoice: true,
     });

@@ -964,7 +964,10 @@ enum PartnerApiKeyPlan {
 model TenantSubscription {
   id                   String            @id @default(uuid()) @db.Uuid
   tenantId             String            @unique @db.Uuid
-  plan                 PartnerApiKeyPlan @default(FREE)
+  /// Billing plan code: FREE | BASIC | FAMILY_GUARDIAN | PREMIUM_SHIELD.
+  /// Free-form string validated against the billing plan registry — decoupled
+  /// from the partner-key quota enum (PartnerApiKeyPlan).
+  plan                 String            @default("FREE")
   /// INACTIVE | TRIALING | ACTIVE | PAST_DUE | CANCELED | MANUAL
   status               String            @default("INACTIVE")
   stripeCustomerId     String?

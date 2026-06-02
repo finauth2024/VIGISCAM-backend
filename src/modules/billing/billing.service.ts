@@ -1,9 +1,10 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { PartnerApiKeyPlan, TenantSubscription } from '@prisma/client';
+import { TenantSubscription } from '@prisma/client';
 import type Stripe from 'stripe';
 import { AuthenticatedUser } from '../../common/auth/auth.types';
 import {
+  BillingPlan,
   ENTITLED_STATUSES,
   mapStripeStatus,
   PLAN_REGISTRY,
@@ -32,7 +33,7 @@ export class BillingService {
   /** Return the tenant's subscription row, or a synthetic FREE/INACTIVE default. */
   async getSubscription(tenantId: string): Promise<{
     tenantId: string;
-    plan: PartnerApiKeyPlan;
+    plan: BillingPlan;
     status: SubscriptionStatus;
     stripeCustomerId: string | null;
     currentPeriodEnd: Date | null;
@@ -43,7 +44,7 @@ export class BillingService {
     const row = await this.prisma.tenantSubscription.findUnique({ where: { tenantId } });
     return {
       tenantId,
-      plan: row?.plan ?? 'FREE',
+      plan: (row?.plan as BillingPlan) ?? 'FREE',
       status: (row?.status as SubscriptionStatus) ?? 'INACTIVE',
       stripeCustomerId: row?.stripeCustomerId ?? null,
       currentPeriodEnd: row?.currentPeriodEnd ?? null,
@@ -58,11 +59,11 @@ export class BillingService {
    * only confers its plan while in an entitled status; otherwise the
    * tenant falls back to FREE. Used by plan-enforcement.
    */
-  async resolveEffectivePlan(tenantId: string): Promise<PartnerApiKeyPlan> {
+  async resolveEffectivePlan(tenantId: string): Promise<BillingPlan> {
     const row = await this.prisma.tenantSubscription.findUnique({ where: { tenantId } });
     if (!row) return 'FREE';
     if (!ENTITLED_STATUSES.includes(row.status as SubscriptionStatus)) return 'FREE';
-    return row.plan;
+    return row.plan as BillingPlan;
   }
 
   // ─── Checkout + portal ──────────────────────────────────────────────────────
@@ -263,16 +264,19 @@ export class BillingService {
     });
   }
 
-  /** Reverse-map a Stripe price id to a plan tier using the env config. */
-  private planFromPriceId(priceId: string | null): PartnerApiKeyPlan {
+  /** Reverse-map a Stripe price id to a plan code using the env config. */
+  private planFromPriceId(priceId: string | null): BillingPlan {
     if (!priceId) return 'FREE';
-    const proPrice = this.config.get<string>('STRIPE_PRICE_PRO');
-    const entPrice = this.config.get<string>('STRIPE_PRICE_ENTERPRISE');
-    if (entPrice && priceId === entPrice) return 'ENTERPRISE';
-    if (proPrice && priceId === proPrice) return 'PRO';
-    // Stub price ids carry the plan in the suffix.
-    if (priceId.endsWith('ENTERPRISE')) return 'ENTERPRISE';
-    if (priceId.endsWith('PRO')) return 'PRO';
+    const basic = this.config.get<string>('STRIPE_PRICE_BASIC');
+    const family = this.config.get<string>('STRIPE_PRICE_FAMILY_GUARDIAN');
+    const premium = this.config.get<string>('STRIPE_PRICE_PREMIUM_SHIELD');
+    if (premium && priceId === premium) return 'PREMIUM_SHIELD';
+    if (family && priceId === family) return 'FAMILY_GUARDIAN';
+    if (basic && priceId === basic) return 'BASIC';
+    // Stub price ids carry the plan code in the suffix.
+    if (priceId.endsWith('PREMIUM_SHIELD')) return 'PREMIUM_SHIELD';
+    if (priceId.endsWith('FAMILY_GUARDIAN')) return 'FAMILY_GUARDIAN';
+    if (priceId.endsWith('BASIC')) return 'BASIC';
     return 'FREE';
   }
 
@@ -284,7 +288,7 @@ export class BillingService {
   private upsertSubscription(
     tenantId: string,
     data: Partial<{
-      plan: PartnerApiKeyPlan;
+      plan: BillingPlan;
       status: SubscriptionStatus;
       stripeCustomerId: string;
       stripeSubscriptionId: string;

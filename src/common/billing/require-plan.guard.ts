@@ -1,6 +1,6 @@
 import { CanActivate, ExecutionContext, ForbiddenException, Injectable } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { PartnerApiKeyPlan } from '@prisma/client';
+import { BillingPlan } from './billing-plans';
 import { Request } from 'express';
 import { BillingService } from '../../modules/billing/billing.service';
 import { AuthenticatedUser } from '../auth/auth.types';
@@ -24,10 +24,10 @@ export class RequirePlanGuard implements CanActivate {
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    const required = this.reflector.getAllAndOverride<PartnerApiKeyPlan | undefined>(
-      REQUIRE_PLAN_KEY,
-      [context.getHandler(), context.getClass()],
-    );
+    const required = this.reflector.getAllAndOverride<BillingPlan | undefined>(REQUIRE_PLAN_KEY, [
+      context.getHandler(),
+      context.getClass(),
+    ]);
     if (!required) return true;
 
     const request = context.switchToHttp().getRequest<Request & { user?: AuthenticatedUser }>();

@@ -1,6 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { PartnerApiKeyPlan } from '@prisma/client';
-import { IsEnum, IsOptional, IsString, MaxLength } from 'class-validator';
+import { IsIn, IsOptional, IsString, MaxLength } from 'class-validator';
+import { BILLING_PLANS, BillingPlan } from '../../../common/billing/billing-plans';
 
 /**
  * Enterprise contract billing — an internal admin marks a tenant as
@@ -8,9 +8,9 @@ import { IsEnum, IsOptional, IsString, MaxLength } from 'class-validator';
  * directly; status becomes MANUAL.
  */
 export class SetManualInvoiceDto {
-  @ApiProperty({ enum: PartnerApiKeyPlan })
-  @IsEnum(PartnerApiKeyPlan)
-  plan!: PartnerApiKeyPlan;
+  @ApiProperty({ enum: BILLING_PLANS, example: 'PREMIUM_SHIELD' })
+  @IsIn(BILLING_PLANS)
+  plan!: BillingPlan;
 
   @ApiPropertyOptional({ description: 'Contract reference / audit note.', maxLength: 2_000 })
   @IsOptional()
