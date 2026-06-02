@@ -89,6 +89,7 @@ model Tenant {
   webhookSubscriptions   WebhookSubscription[]
   evidenceExportBundles  EvidenceExportBundle[]
   agencyFeeds            AgencyFeed[]
+  subscription           TenantSubscription?
 
   @@index([type])
   @@map("tenants")
@@ -947,10 +948,57 @@ enum PartnerApiKeyStatus {
 }
 
 /// Commercial plan tier (Phase 7E). Controls daily call quota; default FREE.
+/// Reused by Phase 11A tenant subscriptions — the tenant's subscription
+/// drives the tenant-level plan, partner API keys keep their per-key plan
+/// for machine-to-machine quota.
 enum PartnerApiKeyPlan {
   FREE
   PRO
   ENTERPRISE
+}
+
+/// Phase 11A — a tenant's billing subscription. One row per tenant. The
+/// Stripe linkage is null until the tenant starts a checkout; until then
+/// the tenant is treated as FREE. `manualInvoice` marks enterprise
+/// contract billing where there is no Stripe card on file.
+model TenantSubscription {
+  id                   String            @id @default(uuid()) @db.Uuid
+  tenantId             String            @unique @db.Uuid
+  plan                 PartnerApiKeyPlan @default(FREE)
+  /// INACTIVE | TRIALING | ACTIVE | PAST_DUE | CANCELED | MANUAL
+  status               String            @default("INACTIVE")
+  stripeCustomerId     String?
+  stripeSubscriptionId String?
+  stripePriceId        String?
+  currentPeriodEnd     DateTime?
+  cancelAtPeriodEnd    Boolean           @default(false)
+  manualInvoice        Boolean           @default(false)
+  evidenceEventId      String?           @db.Uuid
+  createdAt            DateTime          @default(now())
+  updatedAt            DateTime          @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([stripeCustomerId])
+  @@index([stripeSubscriptionId])
+  @@index([status])
+  @@map("tenant_subscriptions")
+}
+
+/// Phase 11A — idempotency + audit log for processed Stripe webhooks.
+/// Keyed on the Stripe event id so a webhook redelivery is a no-op.
+model BillingEvent {
+  id            String    @id @default(uuid()) @db.Uuid
+  stripeEventId String    @unique
+  type          String
+  tenantId      String?   @db.Uuid
+  payload       Json?
+  processedAt   DateTime?
+  createdAt     DateTime  @default(now())
+
+  @@index([type])
+  @@index([tenantId])
+  @@map("billing_events")
 }
 
 /// A long-lived credential a partner tenant (bank / platform / agency /

@@ -109,8 +109,8 @@ export class EnterprisePortalController {
   }
 
   @Get('billing')
-  @ApiOperation({ summary: 'Read-only billing summary (Stripe lands in Phase 11A)' })
-  billing() {
-    return this.enterprise.billingSummary();
+  @ApiOperation({ summary: 'Billing summary — live subscription state (Phase 11A)' })
+  billing(@CurrentUser() user: AuthenticatedUser) {
+    return this.enterprise.billingSummary(user);
   }
 }

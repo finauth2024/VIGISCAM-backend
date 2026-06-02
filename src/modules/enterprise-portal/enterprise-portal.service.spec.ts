@@ -87,6 +87,23 @@ function makeEvidence() {
   };
 }
 
+function makeBilling(
+  sub: Record<string, unknown> = {
+    plan: 'ENTERPRISE',
+    status: 'MANUAL',
+    stripeConfigured: false,
+    manualInvoice: true,
+    currentPeriodEnd: null,
+    cancelAtPeriodEnd: false,
+  },
+) {
+  return {
+    raw: {
+      getSubscription: jest.fn(async () => sub),
+    } as never,
+  };
+}
+
 const ADMIN = {
   userId: 'admin-1',
   email: 'a@corp.example',
@@ -96,14 +113,22 @@ const ADMIN = {
 
 describe('EnterprisePortalService.policies', () => {
   it('setPolicy rejects unknown keys', async () => {
-    const svc = new EnterprisePortalService(makePrisma().raw, makeEvidence().raw);
+    const svc = new EnterprisePortalService(
+      makePrisma().raw,
+      makeEvidence().raw,
+      makeBilling().raw,
+    );
     await expect(svc.setPolicy(ADMIN, 'not-a-key', { value: true })).rejects.toThrow(
       BadRequestException,
     );
   });
 
   it('setPolicy rejects values that fail registry validation', async () => {
-    const svc = new EnterprisePortalService(makePrisma().raw, makeEvidence().raw);
+    const svc = new EnterprisePortalService(
+      makePrisma().raw,
+      makeEvidence().raw,
+      makeBilling().raw,
+    );
     // guardian_pause_default_seconds rejects 5
     await expect(
       svc.setPolicy(ADMIN, 'guardian_pause_default_seconds', { value: 5 }),
@@ -113,7 +138,7 @@ describe('EnterprisePortalService.policies', () => {
   it('setPolicy persists and writes a POLICY_SET evidence event', async () => {
     const prisma = makePrisma();
     const evidence = makeEvidence();
-    const svc = new EnterprisePortalService(prisma.raw, evidence.raw);
+    const svc = new EnterprisePortalService(prisma.raw, evidence.raw, makeBilling().raw);
     await svc.setPolicy(ADMIN, 'elder_mode_default', { value: true });
     expect(prisma.upserted).toHaveLength(1);
     expect(evidence.appended[0]).toMatchObject({
@@ -127,6 +152,7 @@ describe('EnterprisePortalService.policies', () => {
     const svc = new EnterprisePortalService(
       makePrisma({ policyRow: null }).raw,
       makeEvidence().raw,
+      makeBilling().raw,
     );
     await expect(svc.getPolicy(ADMIN, 'elder_mode_default')).rejects.toThrow(NotFoundException);
   });
@@ -136,7 +162,7 @@ describe('EnterprisePortalService.policies', () => {
       policyRow: { id: 'pol-1', tenantId: 'ent-A', key: 'elder_mode_default' },
     });
     const evidence = makeEvidence();
-    const svc = new EnterprisePortalService(prisma.raw, evidence.raw);
+    const svc = new EnterprisePortalService(prisma.raw, evidence.raw, makeBilling().raw);
     await svc.deletePolicy(ADMIN, 'elder_mode_default');
     expect(prisma.deletedPolicies).toHaveLength(1);
     expect(evidence.appended[0]).toMatchObject({
@@ -150,7 +176,7 @@ describe('EnterprisePortalService.devices', () => {
     const prisma = makePrisma({
       devices: [{ id: 'd-1', tenantId: 'ent-A', name: 'laptop' }],
     });
-    const svc = new EnterprisePortalService(prisma.raw, makeEvidence().raw);
+    const svc = new EnterprisePortalService(prisma.raw, makeEvidence().raw, makeBilling().raw);
     await svc.listDevices(ADMIN, {});
     const args = (prisma.raw as never as { device: { findMany: jest.Mock } }).device.findMany.mock
       .calls[0][0];
@@ -162,7 +188,7 @@ describe('EnterprisePortalService.integrations', () => {
   it('createIntegration persists + writes INTEGRATION_CREATED', async () => {
     const prisma = makePrisma();
     const evidence = makeEvidence();
-    const svc = new EnterprisePortalService(prisma.raw, evidence.raw);
+    const svc = new EnterprisePortalService(prisma.raw, evidence.raw, makeBilling().raw);
     await svc.createIntegration(ADMIN, {
       kind: IntegrationKind.SLACK,
       name: 'Trust & Safety channel',
@@ -185,6 +211,7 @@ describe('EnterprisePortalService.integrations', () => {
         integrationRow: { id: 'int-1', tenantId: 'OTHER', name: 'x', kind: 'WEBHOOK' },
       }).raw,
       makeEvidence().raw,
+      makeBilling().raw,
     );
     await expect(svc.deleteIntegration(ADMIN, 'int-1')).rejects.toThrow(NotFoundException);
   });
@@ -194,7 +221,7 @@ describe('EnterprisePortalService.integrations', () => {
       integrationRow: { id: 'int-1', tenantId: 'ent-A', name: 'x', kind: 'WEBHOOK' },
     });
     const evidence = makeEvidence();
-    const svc = new EnterprisePortalService(prisma.raw, evidence.raw);
+    const svc = new EnterprisePortalService(prisma.raw, evidence.raw, makeBilling().raw);
     await svc.deleteIntegration(ADMIN, 'int-1');
     expect(prisma.deletedIntegrations).toHaveLength(1);
     expect(evidence.appended[0]).toMatchObject({
@@ -206,7 +233,7 @@ describe('EnterprisePortalService.integrations', () => {
 describe('EnterprisePortalService.auditLog + billing', () => {
   it('auditLog delegates to EvidenceService.getTimeline scoped to my tenant', async () => {
     const evidence = makeEvidence();
-    const svc = new EnterprisePortalService(makePrisma().raw, evidence.raw);
+    const svc = new EnterprisePortalService(makePrisma().raw, evidence.raw, makeBilling().raw);
     await svc.auditLog(ADMIN, { entityType: 'ENTERPRISE_POLICY' });
     const timelineMock = (evidence.raw as unknown as { getTimeline: jest.Mock }).getTimeline;
     expect(timelineMock).toHaveBeenCalledWith('ent-A', {
@@ -216,12 +243,20 @@ describe('EnterprisePortalService.auditLog + billing', () => {
     });
   });
 
-  it('billingSummary returns the 11A read-only stub', () => {
-    const svc = new EnterprisePortalService(makePrisma().raw, makeEvidence().raw);
-    expect(svc.billingSummary()).toMatchObject({
+  it('billingSummary returns the live subscription state from BillingService', async () => {
+    const svc = new EnterprisePortalService(
+      makePrisma().raw,
+      makeEvidence().raw,
+      makeBilling().raw,
+    );
+    const out = await svc.billingSummary(ADMIN);
+    expect(out).toMatchObject({
+      provider: 'STRIPE',
       providerActive: false,
       plan: 'ENTERPRISE',
-      billingPortalUrl: null,
+      status: 'MANUAL',
+      manualInvoice: true,
+      manageVia: 'POST /api/v1/billing/portal',
     });
   });
 });

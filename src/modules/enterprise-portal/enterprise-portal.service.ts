@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { AuthenticatedUser } from '../../common/auth/auth.types';
 import { PrismaService } from '../../common/prisma/prisma.service';
+import { BillingService } from '../billing/billing.service';
 import { EvidenceService } from '../evidence-vault/evidence.service';
 import { AuditLogQueryDto } from './dto/audit-log-query.dto';
 import { CreateIntegrationDto, IntegrationStatus } from './dto/create-integration.dto';
@@ -18,6 +19,7 @@ export class EnterprisePortalService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly evidence: EvidenceService,
+    private readonly billing: BillingService,
   ) {}
 
   // ─── Policies ──────────────────────────────────────────────────────────────
@@ -197,18 +199,21 @@ export class EnterprisePortalService {
     });
   }
 
-  // ─── Billing surface (read-only stub until Phase 11A) ──────────────────────
+  // ─── Billing surface (Phase 11A — live subscription) ───────────────────────
 
-  billingSummary() {
-    // Stripe integration lands in 11A. Until then the surface returns a
-    // shape the frontend can render — current plan label + an explicit
-    // "not yet active" flag so no UI accidentally surfaces invoice links.
+  async billingSummary(user: AuthenticatedUser) {
+    const sub = await this.billing.getSubscription(user.tenantId);
     return {
       provider: 'STRIPE',
-      providerActive: false,
-      plan: 'ENTERPRISE',
-      billingPortalUrl: null,
-      message: 'Billing surface is read-only until Phase 11A.',
+      providerActive: sub.stripeConfigured,
+      plan: sub.plan,
+      status: sub.status,
+      manualInvoice: sub.manualInvoice,
+      currentPeriodEnd: sub.currentPeriodEnd,
+      cancelAtPeriodEnd: sub.cancelAtPeriodEnd,
+      // The portal URL is minted on demand via POST /billing/portal — it is
+      // a short-lived signed Stripe URL, never persisted here.
+      manageVia: 'POST /api/v1/billing/portal',
     };
   }
 }

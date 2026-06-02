@@ -12,7 +12,9 @@ import { buildCorsMatchers, isOriginAllowed } from './common/cors/cors-matcher';
 import './common/json/bigint-shim';
 
 async function bootstrap(): Promise<void> {
-  const app = await NestFactory.create(AppModule, { bufferLogs: true });
+  // `rawBody: true` preserves the unparsed request body on req.rawBody so
+  // the Stripe webhook (Phase 11A) can verify the payload signature.
+  const app = await NestFactory.create(AppModule, { bufferLogs: true, rawBody: true });
 
   // Route all framework logs through pino (structured logging).
   app.useLogger(app.get(Logger));

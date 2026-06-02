@@ -86,6 +86,31 @@ class EnvironmentVariables {
   @IsString()
   FCM_SERVER_KEY?: string;
 
+  // Phase 11A — Stripe billing. All optional; without STRIPE_SECRET_KEY
+  // the billing service runs in graceful STUB mode (placeholder checkout/
+  // portal URLs, webhooks parsed without signature verification). The
+  // price ids map plan tiers to Stripe prices per environment.
+  @IsOptional()
+  @IsString()
+  STRIPE_SECRET_KEY?: string;
+
+  @IsOptional()
+  @IsString()
+  STRIPE_WEBHOOK_SECRET?: string;
+
+  @IsOptional()
+  @IsString()
+  STRIPE_PRICE_PRO?: string;
+
+  @IsOptional()
+  @IsString()
+  STRIPE_PRICE_ENTERPRISE?: string;
+
+  // Public base URL the billing checkout/portal redirects back to.
+  @IsOptional()
+  @IsString()
+  APP_PUBLIC_URL?: string;
+
   // Required — auth (JWT signing) cannot operate without it.
   @IsString()
   @MinLength(16)
