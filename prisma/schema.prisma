@@ -1865,6 +1865,86 @@ model PlatformModerationDecision {
   @@map("platform_moderation_decisions")
 }
 
+// Phase 10D — Investigator console. Cross-tenant case workspace.
+// Cases bind evidence events + ScamCluster ids + ad-hoc notes. The
+// link itself is the audit — every link writes a chain-of-custody
+// event. Whether the investigator can READ the linked entity's
+// content stays a separate ABAC concern (Phase 10F).
+model InvestigatorCase {
+  id                 String                       @id @default(uuid()) @db.Uuid
+  tenantId           String                       @db.Uuid
+  title              String
+  summary            String?
+  severity           String                       @default("MEDIUM")
+  status             String                       @default("OPEN")
+  assignedToUserId   String?                      @db.Uuid
+  createdByUserId    String                       @db.Uuid
+  closedAt           DateTime?
+  disposition        String?
+  metadata           Json?
+  evidenceEventId    String?                      @db.Uuid
+  createdAt          DateTime                     @default(now())
+  updatedAt          DateTime                     @updatedAt
+
+  evidenceLinks      InvestigatorCaseEvidence[]
+  clusterLinks       InvestigatorCaseCluster[]
+  notes              InvestigatorCaseNote[]
+
+  @@index([tenantId])
+  @@index([status])
+  @@index([severity])
+  @@index([assignedToUserId])
+  @@index([createdAt])
+  @@map("investigator_cases")
+}
+
+model InvestigatorCaseEvidence {
+  id              String           @id @default(uuid()) @db.Uuid
+  caseId          String           @db.Uuid
+  evidenceEventId String           @db.Uuid
+  linkedByUserId  String           @db.Uuid
+  rationale       String?
+  createdAt       DateTime         @default(now())
+
+  case            InvestigatorCase @relation(fields: [caseId], references: [id], onDelete: Cascade)
+
+  @@unique([caseId, evidenceEventId])
+  @@index([caseId])
+  @@index([evidenceEventId])
+  @@map("investigator_case_evidence")
+}
+
+model InvestigatorCaseCluster {
+  id             String           @id @default(uuid()) @db.Uuid
+  caseId         String           @db.Uuid
+  clusterId      String           @db.Uuid
+  linkedByUserId String           @db.Uuid
+  rationale      String?
+  createdAt      DateTime         @default(now())
+
+  case           InvestigatorCase @relation(fields: [caseId], references: [id], onDelete: Cascade)
+
+  @@unique([caseId, clusterId])
+  @@index([caseId])
+  @@index([clusterId])
+  @@map("investigator_case_clusters")
+}
+
+model InvestigatorCaseNote {
+  id              String           @id @default(uuid()) @db.Uuid
+  caseId          String           @db.Uuid
+  authorUserId    String           @db.Uuid
+  body            String
+  evidenceEventId String?          @db.Uuid
+  createdAt       DateTime         @default(now())
+
+  case            InvestigatorCase @relation(fields: [caseId], references: [id], onDelete: Cascade)
+
+  @@index([caseId])
+  @@index([createdAt])
+  @@map("investigator_case_notes")
+}
+
 // Phase 9C — GiftCardGuard™. Gift cards are the most reliable scammer-
 // favourite signal in the dataset, so a baseline 25-point score applies
 // to any gift-card scan. Detection-side flags (code reveal asked, photo
