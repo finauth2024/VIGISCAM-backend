@@ -21,6 +21,7 @@ import { AuthModule } from './modules/auth/auth.module';
 import { AuthenticityModule } from './modules/authenticity/authenticity.module';
 import { BankPortalModule } from './modules/bank-portal/bank-portal.module';
 import { ClaimVerifyModule } from './modules/claimverify/claimverify.module';
+import { EnterprisePortalModule } from './modules/enterprise-portal/enterprise-portal.module';
 import { InvestigatorPortalModule } from './modules/investigator-portal/investigator-portal.module';
 import { PlatformPortalModule } from './modules/platform-portal/platform-portal.module';
 import { ClusteringModule } from './modules/clustering/clustering.module';
@@ -150,6 +151,7 @@ import { WebhooksModule } from './modules/webhooks/webhooks.module';
     BankPortalModule,
     PlatformPortalModule,
     InvestigatorPortalModule,
+    EnterprisePortalModule,
   ],
   providers: [
     // Order matters: rate-limit first, then authenticate, then authorize.
