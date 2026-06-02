@@ -10,12 +10,8 @@ import { createHash } from 'crypto';
 import { AuthenticatedUser } from '../../common/auth/auth.types';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { fuseRiskScore } from './fusion';
-import {
-  InsightHints,
-  stubAssessJourney,
-  stubAssessVictimState,
-  stubPredictNextMove,
-} from './insights-stub';
+import { InsightsClient } from './insights.client';
+import { InsightHints } from './insights-stub';
 
 const SNIPPET_LEN = 200;
 
@@ -37,13 +33,18 @@ export interface FuseResponse {
  * (PDF non-negotiable #13), and produces a single fused RiskAssessment
  * combining them with the existing live risk score + authenticity verdicts.
  *
- * The stubs are placeholder models — the same orchestration applies when
- * external Python services are wired in (same pattern as the 6A NLP /
- * 6B embedding clients).
+ * The insight engines run through InsightsClient (Phase 11B): when
+ * `AI_SERVICE_URL` is configured the external Python workers answer and
+ * each row is stamped source=EXTERNAL; otherwise the in-process stub
+ * answers and the row is stamped source=STUB. Same toggle as the 6A NLP
+ * / 6B embedding clients.
  */
 @Injectable()
 export class RiskFusionV2Service {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly insights: InsightsClient,
+  ) {}
 
   async fuse(actor: AuthenticatedUser, req: FuseRequest): Promise<FuseResponse> {
     const session = await this.prisma.session.findUnique({
@@ -61,14 +62,15 @@ export class RiskFusionV2Service {
 
     // ── 1. Fraud Journey ──
     const journeyStart = Date.now();
-    const journeyOut = stubAssessJourney(hints);
+    const journeyRes = await this.insights.assessJourney(hints);
+    const journeyOut = journeyRes.output;
     const journey = await this.prisma.fraudJourneyAssessment.create({
       data: {
         sessionId: req.sessionId,
         stage: journeyOut.stage,
         confidence: journeyOut.confidence,
         modelVersion: journeyOut.modelVersion,
-        source: 'STUB',
+        source: journeyRes.source,
         evidence: journeyOut.evidence as unknown as Prisma.InputJsonValue,
       },
     });
@@ -76,7 +78,7 @@ export class RiskFusionV2Service {
       data: {
         serviceKind: 'FRAUD_JOURNEY',
         modelVersion: journeyOut.modelVersion,
-        source: 'STUB',
+        source: journeyRes.source,
         entityType: 'SESSION',
         entityId: req.sessionId,
         inputDigest,
@@ -89,14 +91,15 @@ export class RiskFusionV2Service {
 
     // ── 2. Victim State ──
     const victimStart = Date.now();
-    const victimOut = stubAssessVictimState(hints);
+    const victimRes = await this.insights.assessVictimState(hints);
+    const victimOut = victimRes.output;
     const victimState = await this.prisma.victimStateAssessment.create({
       data: {
         sessionId: req.sessionId,
         state: victimOut.state,
         confidence: victimOut.confidence,
         modelVersion: victimOut.modelVersion,
-        source: 'STUB',
+        source: victimRes.source,
         signals: victimOut.signals as unknown as Prisma.InputJsonValue,
       },
     });
@@ -104,7 +107,7 @@ export class RiskFusionV2Service {
       data: {
         serviceKind: 'VICTIM_STATE',
         modelVersion: victimOut.modelVersion,
-        source: 'STUB',
+        source: victimRes.source,
         entityType: 'SESSION',
         entityId: req.sessionId,
         inputDigest,
@@ -117,14 +120,15 @@ export class RiskFusionV2Service {
 
     // ── 3. Predicted Next Move (state-machine over current stage) ──
     const predictStart = Date.now();
-    const predictOut = stubPredictNextMove(journeyOut.stage);
+    const predictRes = await this.insights.predictNextMove(journeyOut.stage);
+    const predictOut = predictRes.output;
     const predictedMove = await this.prisma.predictedNextMove.create({
       data: {
         sessionId: req.sessionId,
         action: predictOut.action,
         confidence: predictOut.confidence,
         modelVersion: predictOut.modelVersion,
-        source: 'STUB',
+        source: predictRes.source,
         rationale: predictOut.rationale,
       },
     });
@@ -132,7 +136,7 @@ export class RiskFusionV2Service {
       data: {
         serviceKind: 'PREDICTED_NEXT_MOVE',
         modelVersion: predictOut.modelVersion,
-        source: 'STUB',
+        source: predictRes.source,
         entityType: 'SESSION',
         entityId: req.sessionId,
         inputDigest,
