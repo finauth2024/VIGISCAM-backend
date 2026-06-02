@@ -3,12 +3,14 @@ import { PlatformModerationDecision } from './dto/moderation-decision.dto';
 import { PlatformQueueRiskFilter } from './dto/moderation-queue-query.dto';
 import { PlatformPortalService } from './platform-portal.service';
 
-function makePrisma(opts: {
-  claims?: Array<Record<string, unknown>>;
-  groomings?: Array<Record<string, unknown>>;
-  claimRow?: Record<string, unknown> | null;
-  existingDecision?: Record<string, unknown> | null;
-} = {}) {
+function makePrisma(
+  opts: {
+    claims?: Array<Record<string, unknown>>;
+    groomings?: Array<Record<string, unknown>>;
+    claimRow?: Record<string, unknown> | null;
+    existingDecision?: Record<string, unknown> | null;
+  } = {},
+) {
   const createdGrooming: Array<Record<string, unknown>> = [];
   const updatedGrooming: Array<{ where: unknown; data: Record<string, unknown> }> = [];
   const createdDecision: Array<Record<string, unknown>> = [];
@@ -164,10 +166,7 @@ describe('PlatformPortalService.groomingCheck', () => {
 
 describe('PlatformPortalService.decideOnClaim', () => {
   it('throws NotFound when the claim does not exist', async () => {
-    const svc = new PlatformPortalService(
-      makePrisma({ claimRow: null }).raw,
-      makeEvidence().raw,
-    );
+    const svc = new PlatformPortalService(makePrisma({ claimRow: null }).raw, makeEvidence().raw);
     await expect(
       svc.decideOnClaim(MOD, 'no-such', {
         decision: PlatformModerationDecision.REMOVE_CONTENT,

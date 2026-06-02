@@ -8,10 +8,7 @@ import {
   ModerationDecisionDto,
   PlatformModerationDecision as PlatformDecisionEnum,
 } from './dto/moderation-decision.dto';
-import {
-  ModerationQueueQueryDto,
-  PlatformQueueRiskFilter,
-} from './dto/moderation-queue-query.dto';
+import { ModerationQueueQueryDto, PlatformQueueRiskFilter } from './dto/moderation-queue-query.dto';
 import { scoreGroomingCheck } from './grooming.scorer';
 
 @Injectable()
@@ -205,11 +202,7 @@ export class PlatformPortalService {
     if (min === PlatformQueueRiskFilter.HIGH) {
       return [ClaimVerifyRiskLevel.HIGH, ClaimVerifyRiskLevel.CRITICAL];
     }
-    return [
-      ClaimVerifyRiskLevel.MEDIUM,
-      ClaimVerifyRiskLevel.HIGH,
-      ClaimVerifyRiskLevel.CRITICAL,
-    ];
+    return [ClaimVerifyRiskLevel.MEDIUM, ClaimVerifyRiskLevel.HIGH, ClaimVerifyRiskLevel.CRITICAL];
   }
 }
 

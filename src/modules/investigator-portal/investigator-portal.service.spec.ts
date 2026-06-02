@@ -155,7 +155,13 @@ describe('InvestigatorPortalService.getCase', () => {
   it('returns NotFound for cross-tenant cases', async () => {
     const svc = new InvestigatorPortalService(
       makePrisma({
-        caseRow: { id: 'case-1', tenantId: 'other-tenant', evidenceLinks: [], clusterLinks: [], notes: [] },
+        caseRow: {
+          id: 'case-1',
+          tenantId: 'other-tenant',
+          evidenceLinks: [],
+          clusterLinks: [],
+          notes: [],
+        },
       }).raw,
       makeEvidence().raw,
     );
@@ -169,9 +175,9 @@ describe('InvestigatorPortalService.updateCase', () => {
       makePrisma({ caseRow: CLOSED_CASE_A }).raw,
       makeEvidence().raw,
     );
-    await expect(
-      svc.updateCase(INV, 'case-1', { status: CaseStatus.IN_PROGRESS }),
-    ).rejects.toThrow(BadRequestException);
+    await expect(svc.updateCase(INV, 'case-1', { status: CaseStatus.IN_PROGRESS })).rejects.toThrow(
+      BadRequestException,
+    );
   });
 
   it('records an INVESTIGATOR_CASE_UPDATED event on success', async () => {

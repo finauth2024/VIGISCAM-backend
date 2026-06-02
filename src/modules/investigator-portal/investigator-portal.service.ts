@@ -97,9 +97,7 @@ export class InvestigatorPortalService {
         ...(dto.summary !== undefined ? { summary: dto.summary } : {}),
         ...(dto.severity !== undefined ? { severity: dto.severity } : {}),
         ...(dto.status !== undefined ? { status: dto.status } : {}),
-        ...(dto.assignedToUserId !== undefined
-          ? { assignedToUserId: dto.assignedToUserId }
-          : {}),
+        ...(dto.assignedToUserId !== undefined ? { assignedToUserId: dto.assignedToUserId } : {}),
       },
     });
     await this.evidence.append({

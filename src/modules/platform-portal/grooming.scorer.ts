@@ -131,9 +131,9 @@ export function scoreGroomingCheck(input: GroomingCheckInput): GroomingCheckScor
     input.minorSuspected === true &&
     Boolean(
       input.paymentRequestDetected ||
-        input.photoSolicitationDetected ||
-        input.moveToPrivateChannelDetected ||
-        input.piiEscalationDetected,
+      input.photoSolicitationDetected ||
+      input.moveToPrivateChannelDetected ||
+      input.piiEscalationDetected,
     );
   const adultToSuspectedMinor = input.ageGapSignal === 'ADULT_TO_SUSPECTED_MINOR';
 
