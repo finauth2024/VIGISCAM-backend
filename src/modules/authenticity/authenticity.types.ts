@@ -23,4 +23,8 @@ export interface AuthenticityResponse {
   score: number;
   modelVersion: string;
   metadata?: Record<string, unknown>;
+  /** Hybrid-pipeline audit envelope from the worker (model, version,
+   *  confidence, reason codes, risk score, evidenceRef, tier,
+   *  requiresHumanReview). Persisted for explainability. */
+  decision?: Record<string, unknown>;
 }

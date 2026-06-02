@@ -15,6 +15,10 @@ export interface AppConfiguration {
   throttle: { ttlMs: number; limit: number };
   /** Optional. Base URL of the external Python AI service. If unset, in-process stubs are used. */
   aiServiceUrl?: string;
+  /** Timeout (ms) for authenticity calls — heavy vision/voice models are slow,
+   *  especially the first (model-loading) call, so this is much larger than the
+   *  default AI client timeout. */
+  aiAuthenticityTimeoutMs: number;
 }
 
 export default (): AppConfiguration => ({
@@ -47,4 +51,5 @@ export default (): AppConfiguration => ({
     limit: parseInt(process.env.THROTTLE_LIMIT ?? '120', 10),
   },
   aiServiceUrl: process.env.AI_SERVICE_URL || undefined,
+  aiAuthenticityTimeoutMs: parseInt(process.env.AI_AUTHENTICITY_TIMEOUT_MS ?? '120000', 10),
 });

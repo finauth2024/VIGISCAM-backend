@@ -14,7 +14,14 @@ export class RequestAuthenticityCheckDto {
   @ApiProperty({
     required: false,
     type: Object,
-    description: 'Check-specific payload (e.g. frame hash, audio reference, device fingerprint).',
+    description:
+      'Check-specific payload. For ML checks, include the media so the AI ' +
+      'worker can run inference: image checks (LIVE_FACE_SEAL, SCENE_SEAL, ' +
+      'ANTI_FAKE_VIDEO) take `imageBase64`/`imageUrl` (or `frameBase64`/' +
+      '`frameUrl`); voice (VOICE_MATCH_SEAL) takes `audioBase64`/`audioUrl`; ' +
+      'DUAL_AUTH takes `expectedChallenge`+`providedChallenge`; CAM_VIGUARD ' +
+      'takes `enrolledFingerprint`+`observedFingerprint`. Without media, ML ' +
+      'checks return INCONCLUSIVE. Nested keys pass through to the worker.',
   })
   @IsOptional()
   @IsObject()

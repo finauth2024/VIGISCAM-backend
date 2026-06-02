@@ -111,6 +111,14 @@ class EnvironmentVariables {
   @IsString()
   APP_PUBLIC_URL?: string;
 
+  // Phase 11B — timeout (ms) for authenticity calls to the AI worker. The
+  // heavy vision/voice models are slow (esp. the first model-loading call),
+  // so this is much larger than the other AI clients' 5s. Default 120000.
+  @IsOptional()
+  @IsInt()
+  @Min(1000)
+  AI_AUTHENTICITY_TIMEOUT_MS?: number;
+
   // Required — auth (JWT signing) cannot operate without it.
   @IsString()
   @MinLength(16)

@@ -39,6 +39,14 @@ export class AuthenticityService {
     });
     const inputDigest = createHash('sha256').update(inputCanonical).digest('hex');
 
+    // Fold the worker's decision envelope (reason codes, risk score, tier,
+    // requiresHumanReview, …) into the verdict metadata so it's discoverable
+    // on the verdict row, not only on the AIDecision audit row.
+    const verdictMetadata =
+      output.metadata || output.decision
+        ? { ...(output.metadata ?? {}), ...(output.decision ? { decision: output.decision } : {}) }
+        : Prisma.JsonNull;
+
     const verdict = await this.prisma.authenticityCheck.create({
       data: {
         sessionId: req.sessionId,
@@ -47,7 +55,7 @@ export class AuthenticityService {
         score: output.score,
         modelVersion: output.modelVersion,
         source,
-        metadata: (output.metadata ?? Prisma.JsonNull) as Prisma.InputJsonValue,
+        metadata: verdictMetadata as Prisma.InputJsonValue,
         requestedByUserId: actor.userId,
       },
     });
