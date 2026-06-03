@@ -6,7 +6,7 @@ export interface ExtractedIndicator {
 }
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const PHONE_RE = /^\+?[0-9][0-9 ()\-]{6,}$/;
+const PHONE_RE = /^\+?[0-9][0-9 ()-]{6,}$/;
 const DOMAIN_RE = /^[a-z0-9-]+(?:\.[a-z0-9-]+)+$/i;
 
 function firstString(s: Record<string, unknown>, keys: string[]): string | undefined {
@@ -54,7 +54,7 @@ export function extractClaimIndicators(subject: unknown): ExtractedIndicator[] {
   if (email && EMAIL_RE.test(email)) push('EMAIL', email.toLowerCase());
 
   const phone = firstString(s, ['phone', 'phoneNumber', 'contactPhone']);
-  if (phone && PHONE_RE.test(phone)) push('PHONE', phone.replace(/[\s()\-]/g, ''));
+  if (phone && PHONE_RE.test(phone)) push('PHONE', phone.replace(/[\s()-]/g, ''));
 
   const wallet = firstString(s, ['wallet', 'walletAddress', 'cryptoWallet', 'address']);
   if (wallet && /^[a-zA-Z0-9]{20,}$/.test(wallet)) push('CRYPTO_WALLET', wallet);

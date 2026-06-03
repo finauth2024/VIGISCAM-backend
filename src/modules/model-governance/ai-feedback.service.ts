@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { AIDecision, AIDecisionReviewStatus, AIReviewerLabel, Prisma } from '@prisma/client';
+import { AIDecision, AIDecisionReviewStatus, AIReviewerLabel } from '@prisma/client';
 import { AuthenticatedUser } from '../../common/auth/auth.types';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { SubmitAiFeedbackDto } from './dto/submit-ai-feedback.dto';
