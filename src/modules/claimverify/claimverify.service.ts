@@ -9,7 +9,9 @@ import {
   ProtectionEnforcementService,
 } from '../protection-settings/protection-enforcement.service';
 import { RiskEventRecorderService } from '../risk-events/risk-event-recorder.service';
+import { ScamSignalsService } from '../scam-signals/scam-signals.service';
 import { TrustedContactReviewService } from '../trusted-contact-review/trusted-contact-review.service';
+import { extractClaimIndicators } from './claim-indicators';
 import { ClaimVerifyUserDecision, DecideClaimDto } from './dto/decide-claim.dto';
 import { VerifyClaimDto } from './dto/verify-claim.dto';
 import { scoreClaimVerify } from './claimverify.scoring';
@@ -33,7 +35,21 @@ export class ClaimVerifyService {
     private readonly trustedContactReview: TrustedContactReviewService,
     private readonly enforcement: ProtectionEnforcementService,
     private readonly riskEvents: RiskEventRecorderService,
+    private readonly scamSignals: ScamSignalsService,
   ) {}
+
+  /** Map a ClaimVerify claim type onto a ScamPulse scam-category code. */
+  private claimCategory(claimType: string): string | undefined {
+    const map: Record<string, string> = {
+      INVESTMENT: 'INVESTMENT_SCAM',
+      ROMANCE: 'ROMANCE_SCAM',
+      CHARITY: 'DONATION_SCAM',
+      GOVERNMENT: 'GOVERNMENT_IMPERSONATION',
+      JOB: 'FAKE_JOB_SCAM',
+      WORK_FROM_HOME: 'FAKE_JOB_SCAM',
+    };
+    return map[claimType];
+  }
 
   async verify(user: AuthenticatedUser, dto: VerifyClaimDto): Promise<ClaimVerification> {
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
@@ -107,15 +123,33 @@ export class ClaimVerifyService {
       });
       guardianPauseId = pause.id;
 
-      // TODO(11B): also feed the suspicious claim into ScamPulse signal
-      // intake (ScamSignalsService.submitReport) so the verified
-      // intelligence layer sees this pattern across users. Skipped here
-      // because deciding the canonical indicator from a free-form subject
-      // belongs with the real NLP worker that lands in 11B.
-      this.logger.log(
-        `Suspicious claim ${created.id} (${scoring.level}) — Phase 11B will ` +
-          'feed this into ScamPulse signal intake.',
-      );
+      // CP-5 — feed the suspicious claim into ScamPulse signal intake so the
+      // intelligence layer sees this pattern across users. Indicators are
+      // extracted from the (structured) subject; each goes through the private
+      // intake engine (deduped, scored, clustered, Evidence-Vault-logged, and
+      // routed to the review queue when high-risk). NEVER auto-verified or
+      // public. Best-effort — a failed intake must not break the user's check.
+      const indicators = extractClaimIndicators(dto.subject);
+      for (const ind of indicators) {
+        try {
+          const signal = await this.scamSignals.submitFromModule({
+            dto: {
+              indicatorType: ind.indicatorType,
+              indicatorValue: ind.indicatorValue,
+              category: this.claimCategory(dto.claimType),
+              description: `Suspicious ${dto.claimType.toLowerCase().replace('_', ' ')} claim flagged by ClaimVerify (${scoring.level}).`,
+            },
+            tenantId: user.tenantId,
+            submittedByUserId: user.userId,
+            sourceModule: 'CLAIMVERIFY',
+          });
+          this.logger.log(
+            `Claim ${created.id}: fed ${ind.indicatorType} indicator into ScamPulse (signal ${signal.id}).`,
+          );
+        } catch (err: unknown) {
+          this.logger.warn(`Claim ${created.id}: ScamPulse intake failed: ${String(err)}`);
+        }
+      }
     }
 
     // CP-3 — every module emits a unified RiskEvent.

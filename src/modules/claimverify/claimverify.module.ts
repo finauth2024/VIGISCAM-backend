@@ -4,11 +4,12 @@ import { GuardianPauseModule } from '../guardian-pause/guardian-pause.module';
 import { TrustedContactReviewModule } from '../trusted-contact-review/trusted-contact-review.module';
 import { ProtectionSettingsModule } from '../protection-settings/protection-settings.module';
 import { RiskEventsModule } from '../risk-events/risk-events.module';
+import { ScamSignalsModule } from '../scam-signals/scam-signals.module';
 import { ClaimVerifyController } from './claimverify.controller';
 import { ClaimVerifyService } from './claimverify.service';
 
 @Module({
-  imports: [EvidenceModule, GuardianPauseModule, TrustedContactReviewModule, ProtectionSettingsModule, RiskEventsModule],
+  imports: [EvidenceModule, GuardianPauseModule, TrustedContactReviewModule, ProtectionSettingsModule, RiskEventsModule, ScamSignalsModule],
   controllers: [ClaimVerifyController],
   providers: [ClaimVerifyService],
   exports: [ClaimVerifyService],

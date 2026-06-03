@@ -88,6 +88,10 @@ function makeEnforcement() {
   };
 }
 
+function makeScamSignals() {
+  return { raw: { submitFromModule: jest.fn(async () => ({ id: 'sig-1' })) } as never };
+}
+
 function makeRiskEvents() {
   return { raw: { record: jest.fn(async () => ({ id: 're-1' })) } as never };
 }
@@ -103,7 +107,7 @@ describe('ClaimVerifyService.verify', () => {
   it('a JOB claim with no signals is LOW, no Guardian Pause', async () => {
     const prisma = makePrisma({});
     const gp = makeGuardianPause();
-    const svc = new ClaimVerifyService(prisma.raw, makeEvidence().raw, gp.raw, makeTcr().raw, makeEnforcement().raw, makeRiskEvents().raw);
+    const svc = new ClaimVerifyService(prisma.raw, makeEvidence().raw, gp.raw, makeTcr().raw, makeEnforcement().raw, makeRiskEvents().raw, makeScamSignals().raw);
 
     await svc.verify(USER, {
       claimType: 'JOB',
@@ -121,7 +125,7 @@ describe('ClaimVerifyService.verify', () => {
     const prisma = makePrisma({});
     const gp = makeGuardianPause();
     const evidence = makeEvidence();
-    const svc = new ClaimVerifyService(prisma.raw, evidence.raw, gp.raw, makeTcr().raw, makeEnforcement().raw, makeRiskEvents().raw);
+    const svc = new ClaimVerifyService(prisma.raw, evidence.raw, gp.raw, makeTcr().raw, makeEnforcement().raw, makeRiskEvents().raw, makeScamSignals().raw);
 
     await svc.verify(USER, {
       claimType: 'ROMANCE',
@@ -153,6 +157,7 @@ describe('ClaimVerifyService.verify', () => {
       makeTcr().raw,
       makeEnforcement().raw,
       makeRiskEvents().raw,
+      makeScamSignals().raw,
     );
 
     await svc.verify(USER, {
@@ -172,6 +177,7 @@ describe('ClaimVerifyService.verify', () => {
       makeTcr().raw,
       makeEnforcement().raw,
       makeRiskEvents().raw,
+      makeScamSignals().raw,
     );
     await svc.verify(USER, {
       claimType: 'OIL_PROJECT',
@@ -195,6 +201,7 @@ describe('ClaimVerifyService.decide', () => {
       makeTcr().raw,
       makeEnforcement().raw,
       makeRiskEvents().raw,
+      makeScamSignals().raw,
     );
     await expect(
       svc.decide(USER, 'nope', { decision: ClaimVerifyUserDecision.TRUSTED }),
@@ -211,6 +218,7 @@ describe('ClaimVerifyService.decide', () => {
       makeTcr().raw,
       makeEnforcement().raw,
       makeRiskEvents().raw,
+      makeScamSignals().raw,
     );
     await expect(
       svc.decide(USER, 'claim-1', { decision: ClaimVerifyUserDecision.TRUSTED }),
@@ -229,6 +237,7 @@ describe('ClaimVerifyService.decide', () => {
       makeTcr().raw,
       makeEnforcement().raw,
       makeRiskEvents().raw,
+      makeScamSignals().raw,
     );
 
     await svc.decide(USER, 'claim-1', {

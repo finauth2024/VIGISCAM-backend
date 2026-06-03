@@ -79,6 +79,31 @@ export class ScamSignalsService {
   }
 
   /**
+   * CP-5 — internal module intake (e.g. ClaimVerify feeding a suspicious claim
+   * into ScamPulse). Goes through the same private intake engine: normalized,
+   * deduped, scored, clustered, Evidence-Vault-logged, and routed to the review
+   * queue when high-risk. NEVER auto-verified or public (brief §3, §16).
+   */
+  submitFromModule(input: {
+    dto: SubmitScamReportDto;
+    tenantId?: string | null;
+    submittedByUserId?: string | null;
+    sourceModule: string;
+  }): Promise<ScamSignal> {
+    return this.intake(
+      {
+        dto: input.dto,
+        sourceType: 'INTERNAL',
+        tenantId: input.tenantId ?? null,
+        submittedByUserId: input.submittedByUserId ?? null,
+        actorType: 'INTERNAL',
+        extraEvidenceMetadata: { sourceModule: input.sourceModule },
+      },
+      {},
+    );
+  }
+
+  /**
    * Partner intake (Phase 5B). The signal is tagged with the partner tenant
    * and the partner's source type (derived from the tenant's category), which
    * carries a higher base reliability than a public user report.
