@@ -97,14 +97,17 @@ model Tenant {
 
 /// A global user account. Access to a tenant is granted via a Membership.
 model User {
-  id           String     @id @default(uuid()) @db.Uuid
-  email        String     @unique
-  passwordHash String
-  fullName     String
-  status       UserStatus @default(ACTIVE)
-  lastLoginAt  DateTime?
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
+  id               String     @id @default(uuid()) @db.Uuid
+  email            String     @unique
+  passwordHash     String
+  fullName         String
+  status           UserStatus @default(ACTIVE)
+  /// Elder/vulnerable protection flag (brief pp.58). When true, stronger
+  /// warnings + trusted-contact approval apply (see ProtectionSettings).
+  elderModeEnabled Boolean    @default(false)
+  lastLoginAt      DateTime?
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
 
   memberships      Membership[]
   refreshTokens    RefreshToken[]
@@ -123,8 +126,70 @@ model User {
   claimVerifications    ClaimVerification[]
   scamMirrorSessions    ScamMirrorSession[]
   trustedContactReviews TrustedContactReview[]
+  userProfile           UserProfile?
+  protectionSettings    ProtectionSettings?
 
   @@map("users")
+}
+
+/// Per-user protection preferences / accessibility context (brief pp.59).
+model UserProfile {
+  id                       String          @id @default(uuid()) @db.Uuid
+  userId                   String          @unique @db.Uuid
+  ageGroup                 String?
+  preferredLanguage        String          @default("en")
+  country                  String?
+  timezone                 String?
+  protectionLevel          ProtectionLevel @default(STANDARD)
+  defaultTrustedContactId  String?         @db.Uuid
+  voiceWarningEnabled      Boolean         @default(false)
+  largeTextWarningEnabled  Boolean         @default(false)
+  accessibilityModeEnabled Boolean         @default(false)
+  createdAt                DateTime        @default(now())
+  updatedAt                DateTime        @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_profiles")
+}
+
+/// Module-level protection settings + the elder/trusted-contact policy knobs
+/// that drive Guardian Pause / ScamHold / GiftCardGuard / WalletGuard /
+/// ClaimVerify enforcement (brief pp.59, §8/§9).
+model ProtectionSettings {
+  id                           String   @id @default(uuid()) @db.Uuid
+  userId                       String   @unique @db.Uuid
+  scamHoldEnabled              Boolean  @default(true)
+  guardianPauseEnabled         Boolean  @default(true)
+  giftCardGuardEnabled         Boolean  @default(true)
+  walletGuardEnabled           Boolean  @default(true)
+  claimVerifyEnabled           Boolean  @default(true)
+  scamMirrorEnabled            Boolean  @default(true)
+  identityGraphEnabled         Boolean  @default(true)
+  evidenceAutoSaveEnabled      Boolean  @default(true)
+  /// When true, CRITICAL actions require an approved trusted-contact review.
+  trustedContactRequired       Boolean  @default(false)
+  /// When true (elder strict lock), CONTINUE_ANYWAY is disabled on CRITICAL
+  /// payment/giftcard/wallet/claim risk until a trusted contact approves.
+  elderModeStrictLock          Boolean  @default(false)
+  /// When false, the user can never push past a held HIGH/CRITICAL action.
+  allowContinueAnyway          Boolean  @default(true)
+  /// Smallest currency unit (cents). Transactions at/above this escalate.
+  highRiskAmountThresholdMinor BigInt   @default(100000)
+  guardianPauseDurationSeconds Int      @default(30)
+  createdAt                    DateTime @default(now())
+  updatedAt                    DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("protection_settings")
+}
+
+enum ProtectionLevel {
+  STANDARD
+  ELEVATED
+  ELDER
+  MAXIMUM
 }
 
 /// Links a user to a tenant with a role — the unit of RBAC.

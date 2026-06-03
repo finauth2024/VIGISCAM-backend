@@ -48,6 +48,7 @@ import { RegistryModule } from './modules/registry/registry.module';
 import { ReviewQueueModule } from './modules/review-queue/review-queue.module';
 import { RiskFusionV2Module } from './modules/risk-fusion-v2/risk-fusion-v2.module';
 import { RiskModule } from './modules/risk-fusion/risk.module';
+import { ProtectionSettingsModule } from './modules/protection-settings/protection-settings.module';
 import { ScamCheckModule } from './modules/scam-check/scam-check.module';
 import { ScamHoldModule } from './modules/scamhold/scamhold.module';
 import { ScamMirrorModule } from './modules/scammirror/scammirror.module';
@@ -125,6 +126,7 @@ import { WebhooksModule } from './modules/webhooks/webhooks.module';
     FamiliesModule,
     ScamSignalsModule,
     ScamCheckModule,
+    ProtectionSettingsModule,
     ScamHoldModule,
     ScamMirrorModule,
     WalletGuardModule,
