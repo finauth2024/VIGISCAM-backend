@@ -2,7 +2,10 @@ import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/commo
 import { Worker } from 'bullmq';
 import { NotificationDeliveryPayload, QUEUE_NAMES } from '../../common/queue/queue-names';
 import { QueueService } from '../../common/queue/queue.service';
+import { WorkerHealthRegistry } from '../../common/queue/worker-health.registry';
 import { NotificationService } from './notification.service';
+
+const WORKER_NAME = 'notification-retry-worker';
 
 /**
  * CP-9 — the BullMQ worker that re-attempts failed notification deliveries
@@ -19,6 +22,7 @@ export class NotificationRetryWorker implements OnModuleInit, OnModuleDestroy {
   constructor(
     private readonly queue: QueueService,
     private readonly notifications: NotificationService,
+    private readonly health: WorkerHealthRegistry,
   ) {}
 
   onModuleInit(): void {
@@ -37,10 +41,12 @@ export class NotificationRetryWorker implements OnModuleInit, OnModuleDestroy {
     this.worker.on('failed', (job, err) =>
       this.logger.warn(`notification retry job ${job?.id} failed: ${err?.message}`),
     );
+    this.health.register(WORKER_NAME, QUEUE_NAMES.NotificationDelivery);
     this.logger.log('Notification retry worker started.');
   }
 
   async onModuleDestroy(): Promise<void> {
+    this.health.markStopped(WORKER_NAME);
     await this.worker?.close();
   }
 }

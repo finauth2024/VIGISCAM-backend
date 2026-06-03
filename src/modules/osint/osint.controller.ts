@@ -1,4 +1,4 @@
-import { Controller, DefaultValuePipe, Get, ParseIntPipe, Query } from '@nestjs/common';
+import { Controller, DefaultValuePipe, Get, Param, ParseIntPipe, ParseUUIDPipe, Post, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { MembershipRole } from '@prisma/client';
 import { Roles } from '../../common/auth/roles.decorator';
@@ -35,5 +35,10 @@ export class OsintController {
   @ApiOperation({ summary: 'OSINT provider catalog + which external feeds are live (CP-6).' })
   providers() {
     return this.osint.providerCatalog();
+  }
+  @Post('enrich/:signalId')
+  @ApiOperation({ summary: 'Queue a background OSINT enrichment for a scam signal (CP-10).' })
+  enrich(@Param('signalId', new ParseUUIDPipe()) signalId: string) {
+    return this.osint.enqueueEnrichment(signalId);
   }
 }

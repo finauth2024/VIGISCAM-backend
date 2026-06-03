@@ -1,7 +1,9 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { IndicatorType, OsintEnrichment, Prisma, ScamSignal } from '@prisma/client';
 import { createHash } from 'crypto';
 import { PrismaService } from '../../common/prisma/prisma.service';
+import { QUEUE_NAMES } from '../../common/queue/queue-names';
+import { QueueService } from '../../common/queue/queue.service';
 import { OsintClient } from './osint.client';
 import { OsintProviderRegistry } from './providers/osint-provider.registry';
 
@@ -24,11 +26,32 @@ export class OsintService {
     private readonly prisma: PrismaService,
     private readonly client: OsintClient,
     private readonly providers: OsintProviderRegistry,
+    private readonly queue: QueueService,
   ) {}
 
   /** CP-6 — the OSINT provider catalog + which external feeds are live. */
   providerCatalog() {
     return this.providers.catalog();
+  }
+
+  /**
+   * CP-10 — enqueue a background OSINT enrichment for a signal. Falls back to
+   * synchronous enrichment when Redis isn't configured (dev/single-process), so
+   * the call always does useful work.
+   */
+  async enqueueEnrichment(signalId: string): Promise<{ queued: boolean }> {
+    const signal = await this.prisma.scamSignal.findUnique({ where: { id: signalId } });
+    if (!signal) throw new NotFoundException('Scam signal not found');
+    const jobId = await this.queue.enqueue(QUEUE_NAMES.OsintEnrichment, {
+      signalId: signal.id,
+      indicatorType: signal.indicatorType,
+      normalizedIndicator: signal.normalizedIndicator,
+    });
+    if (!jobId) {
+      await this.enrichSignal(signal);
+      return { queued: false };
+    }
+    return { queued: true };
   }
 
   /** Enrich a signal best-effort. No-op for non-enrichable indicator types. */
