@@ -54,6 +54,9 @@ describeIfRedis('Queue service (Phase 8B, end-to-end)', () => {
     const jobId = await queueService.enqueue(QUEUE_NAMES.NotificationDelivery, {
       tenantId: null,
       channel: 'email',
+        deliveryId: 'd-test',
+        subject: 'S',
+        body: 'B',
       recipient: 'contract@example.com',
       templateKey: 'phase8b-smoke',
       variables: { foo: 'bar' },

@@ -36,6 +36,9 @@ describe('QueueService (no REDIS_URL)', () => {
     const jobId = await queue.enqueue(QUEUE_NAMES.NotificationDelivery, {
       tenantId: null,
       channel: 'email',
+        deliveryId: 'd-test',
+        subject: 'S',
+        body: 'B',
       recipient: 'test@example.com',
       templateKey: 'welcome',
     });

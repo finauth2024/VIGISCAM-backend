@@ -40,11 +40,27 @@ function makePrisma() {
           updated.push(args.data);
           return {};
         }),
+        updateMany: jest.fn(async (args: { data: Record<string, unknown> }) => {
+          updated.push(args.data);
+          return { count: 1 };
+        }),
       },
     } as unknown as PrismaService,
     created,
     updated,
   };
+}
+
+function buildSvc(prisma: ReturnType<typeof makePrisma>, queue: ReturnType<typeof makeQueue>, opts: { emailOk: boolean } = { emailOk: true }) {
+  return new NotificationService(
+    makeAdapter('EMAIL', opts.emailOk ? { ok: true } : { ok: false, error: 'upstream 500' }) as unknown as EmailAdapter,
+    makeAdapter('SMS', { ok: true }) as unknown as SmsAdapter,
+    makeAdapter('PUSH', { ok: true }) as unknown as PushAdapter,
+    makeAdapter('IN_APP', { ok: true }) as unknown as InAppAdapter,
+    makeAdapter('WEBSOCKET', { ok: true }) as unknown as WebsocketAdapter,
+    prisma.raw,
+    queue.raw,
+  );
 }
 
 function makeQueue() {
@@ -185,5 +201,40 @@ describe('NotificationService', () => {
 
     expect(email.calls).toHaveLength(0);
     expect(sms.calls).toHaveLength(1);
+  });
+
+  it('CP-9 retryFromQueue: re-attempts + updates the row on success', async () => {
+    const prisma = makePrisma();
+    const svc = buildSvc(prisma, makeQueue(), { emailOk: true });
+    await svc.retryFromQueue({
+      deliveryId: 'delivery-1',
+      channel: 'email',
+      recipient: 'x@example.com',
+      subject: 's',
+      body: 'b',
+    });
+    expect(prisma.updated[0]).toMatchObject({ status: 'SENT' });
+  });
+
+  it('CP-9 retryFromQueue: throws on persistent failure so BullMQ retries', async () => {
+    const prisma = makePrisma();
+    const svc = buildSvc(prisma, makeQueue(), { emailOk: false });
+    await expect(
+      svc.retryFromQueue({
+        deliveryId: 'delivery-1',
+        channel: 'email',
+        recipient: 'x@example.com',
+        subject: 's',
+        body: 'b',
+      }),
+    ).rejects.toThrow(/still failing/);
+    expect(prisma.updated[0]).toMatchObject({ status: 'FAILED' });
+  });
+
+  it('CP-9 markRead: stamps readAt for the user\'s delivery', async () => {
+    const prisma = makePrisma();
+    const svc = buildSvc(prisma, makeQueue());
+    await svc.markRead('delivery-1', 'user-1');
+    expect(prisma.updated[0]).toHaveProperty('readAt');
   });
 });

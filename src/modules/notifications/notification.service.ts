@@ -16,7 +16,18 @@ export interface SendNotificationInput extends NotificationSendArgs {
   tenantId?: string | null;
   userId?: string | null;
   templateKey: string;
+  /** CP-9 — link the delivery to the risk event / evidence that triggered it. */
+  relatedRiskEventId?: string | null;
+  relatedEvidenceId?: string | null;
 }
+
+const KEBAB_TO_CHANNEL: Record<string, NotificationChannel> = {
+  email: 'EMAIL',
+  sms: 'SMS',
+  push: 'PUSH',
+  'in-app': 'IN_APP',
+  websocket: 'WEBSOCKET',
+};
 
 /**
  * Public API for Phase 9 modules (Guardian Pause, ScamHold, trusted-contact
@@ -53,7 +64,6 @@ export class NotificationService {
   }
 
   async send(input: SendNotificationInput): Promise<{ deliveryId: string }> {
-    const adapter = this.adapters[input.channel];
     const payloadDigest = createHash('sha256')
       .update(`${input.templateKey}|${input.recipient}|${input.body}`)
       .digest('hex');
@@ -69,37 +79,31 @@ export class NotificationService {
         templateKey: input.templateKey,
         payloadDigest,
         attempts: 0,
+        relatedRiskEventId: input.relatedRiskEventId ?? null,
+        relatedEvidenceId: input.relatedEvidenceId ?? null,
       },
     });
 
-    const res = await adapter.send({
+    const res = await this.attemptDelivery(delivery.id, input.channel, {
       recipient: input.recipient,
       subject: input.subject,
       body: input.body,
       metadata: input.metadata,
     });
 
-    await this.prisma.notificationDelivery.update({
-      where: { id: delivery.id },
-      data: {
-        status: res.ok ? (res.skipped ? 'SKIPPED' : 'SENT') : 'FAILED',
-        attempts: { increment: 1 },
-        lastError: res.error ?? null,
-        providerMessageId: res.providerMessageId ?? null,
-        sentAt: res.ok && !res.skipped ? new Date() : null,
-      },
-    });
-
-    if (!res.ok) {
-      // Enqueue a background retry. The notification-delivery queue worker
-      // (added in 9H) reloads the row and calls send() again with backoff.
+    if (!res.ok && !res.skipped) {
+      // Enqueue a background retry. The NotificationRetryWorker reloads the
+      // row and re-attempts via BullMQ's exponential backoff (3 attempts).
       await this.queue.enqueue(
         QUEUE_NAMES.NotificationDelivery,
         {
+          deliveryId: delivery.id,
           tenantId: input.tenantId ?? null,
           channel: this.toQueueChannel(input.channel),
           recipient: input.recipient,
           templateKey: input.templateKey,
+          subject: input.subject,
+          body: input.body,
           variables: input.metadata,
         },
         { jobId: `retry:${delivery.id}` },
@@ -108,6 +112,64 @@ export class NotificationService {
     }
 
     return { deliveryId: delivery.id };
+  }
+
+  /**
+   * CP-9 — send via the channel adapter and record the outcome on the delivery
+   * row (status, attempt count, failure reason, sentAt). Shared by the initial
+   * send() and the retry worker.
+   */
+  async attemptDelivery(
+    deliveryId: string,
+    channel: NotificationChannel,
+    args: NotificationSendArgs,
+  ): Promise<{ ok: boolean; skipped?: boolean; error?: string }> {
+    const adapter = this.adapters[channel];
+    const res = await adapter.send(args);
+    await this.prisma.notificationDelivery.update({
+      where: { id: deliveryId },
+      data: {
+        status: res.ok ? (res.skipped ? 'SKIPPED' : 'SENT') : 'FAILED',
+        attempts: { increment: 1 },
+        lastError: res.error ?? null,
+        providerMessageId: res.providerMessageId ?? null,
+        sentAt: res.ok && !res.skipped ? new Date() : undefined,
+      },
+    });
+    return { ok: res.ok, skipped: res.skipped, error: res.error };
+  }
+
+  /**
+   * CP-9 — retry entry point for the BullMQ worker. Re-attempts the delivery;
+   * THROWS on failure so BullMQ applies its backoff + attempt cap. After the
+   * final attempt the job lands in the failed set and the row stays FAILED.
+   */
+  async retryFromQueue(payload: {
+    deliveryId: string;
+    channel: 'email' | 'sms' | 'push' | 'in-app' | 'websocket';
+    recipient: string;
+    subject: string;
+    body: string;
+    variables?: Record<string, unknown>;
+  }): Promise<void> {
+    const channel = KEBAB_TO_CHANNEL[payload.channel];
+    const res = await this.attemptDelivery(payload.deliveryId, channel, {
+      recipient: payload.recipient,
+      subject: payload.subject,
+      body: payload.body,
+      metadata: payload.variables,
+    });
+    if (!res.ok && !res.skipped) {
+      throw new Error(`delivery ${payload.deliveryId} still failing: ${res.error ?? 'unknown'}`);
+    }
+  }
+
+  /** CP-9 — mark an in-app notification read. */
+  async markRead(deliveryId: string, userId: string): Promise<void> {
+    await this.prisma.notificationDelivery.updateMany({
+      where: { id: deliveryId, userId },
+      data: { readAt: new Date() },
+    });
   }
 
   /** Bridge between Prisma's UPPER_SNAKE enum and the queue payload's kebab vocabulary. */

@@ -66,10 +66,14 @@ export interface EvidenceExportPayload {
 }
 
 export interface NotificationDeliveryPayload {
+  /** The NotificationDelivery row this retry updates. */
+  deliveryId: string;
   tenantId: string | null;
   channel: 'email' | 'sms' | 'push' | 'in-app' | 'websocket';
   recipient: string;
   templateKey: string;
+  subject: string;
+  body: string;
   variables?: Record<string, unknown>;
 }
 
