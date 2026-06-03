@@ -8,6 +8,8 @@ import {
   ScamSignal,
 } from '@prisma/client';
 import { PrismaService } from '../../common/prisma/prisma.service';
+import { mask } from '../identity-graph/masker';
+import { normalizeIndicator } from '../scam-signals/normalization';
 
 const CLUSTER_PEER_SCAN_CAP = 200;
 const SIMILARITY_PEER_SCAN_CAP = 50;
@@ -41,6 +43,60 @@ export class FraudGraphService {
     const clusterEdges = await this.linkClusterPeers(node, signal);
     const similarityEdges = await this.linkSimilarityPeers(node, signal);
     return { node, clusterEdges, similarityEdges };
+  }
+
+  /**
+   * CP-12 — record a graph node from any module finding (WalletGuard,
+   * ScamMirror, GiftCardGuard, AI, …), not just a ScamSignal. Dedupes by
+   * (indicatorType, normalizedIndicator), bumps signalCount + riskScore, and
+   * stores a public-safe masked display value. Best-effort callers should
+   * swallow errors — graph projection must never break the protective flow.
+   */
+  async recordNode(input: {
+    indicatorType: IndicatorType;
+    indicatorValue: string;
+    category?: string | null;
+    riskScore?: number;
+    source: string;
+  }): Promise<FraudGraphNode> {
+    const normalized = normalizeIndicator(input.indicatorType, input.indicatorValue);
+    const displayMask = mask({
+      nodeType: FraudGraphNodeType.INDICATOR,
+      normalizedIndicator: normalized,
+      displayMask: null,
+      label: input.indicatorValue,
+    });
+    const where = {
+      indicatorType_normalizedIndicator: {
+        indicatorType: input.indicatorType,
+        normalizedIndicator: normalized,
+      },
+    };
+    const existing = await this.prisma.fraudGraphNode.findUnique({ where });
+    if (existing) {
+      return this.prisma.fraudGraphNode.update({
+        where: { id: existing.id },
+        data: {
+          signalCount: { increment: 1 },
+          riskScore: Math.max(existing.riskScore, input.riskScore ?? 0),
+          category: existing.category ?? input.category ?? null,
+          displayMask: existing.displayMask ?? displayMask,
+          lastSeen: new Date(),
+        },
+      });
+    }
+    return this.prisma.fraudGraphNode.create({
+      data: {
+        nodeType: FraudGraphNodeType.INDICATOR,
+        indicatorType: input.indicatorType,
+        normalizedIndicator: normalized,
+        label: input.indicatorValue,
+        category: input.category ?? null,
+        displayMask,
+        signalCount: 1,
+        riskScore: input.riskScore ?? 0,
+      },
+    });
   }
 
   /** Find-or-create a node for this signal's indicator + bump aggregates. */

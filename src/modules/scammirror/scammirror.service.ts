@@ -3,6 +3,7 @@ import { Prisma, ScamMirrorSession, ScamMirrorStatus } from '@prisma/client';
 import { AuthenticatedUser } from '../../common/auth/auth.types';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { EvidenceService } from '../evidence-vault/evidence.service';
+import { FraudGraphService } from '../fraud-graph/fraud-graph.service';
 import { GuardianPauseService } from '../guardian-pause/guardian-pause.service';
 import { RecordInputDto } from './dto/record-input.dto';
 import { StartSessionDto } from './dto/start-session.dto';
@@ -38,6 +39,7 @@ export class ScamMirrorService {
     private readonly prisma: PrismaService,
     private readonly evidence: EvidenceService,
     private readonly guardianPause: GuardianPauseService,
+    private readonly graph: FraudGraphService,
   ) {}
 
   async start(user: AuthenticatedUser, dto: StartSessionDto): Promise<ScamMirrorSession> {
@@ -124,6 +126,20 @@ export class ScamMirrorService {
         // make audit reads expensive.
       },
     });
+
+    // CP-12 — project learned scam-script tactics onto the Identity Graph.
+    if (learned) {
+      for (const tactic of ended.tacticsObserved) {
+        await this.graph
+          .recordNode({
+            indicatorType: 'SCAM_PHRASE',
+            indicatorValue: tactic,
+            category: 'SCRIPT_PATTERN',
+            source: 'SCAMMIRROR',
+          })
+          .catch((err: unknown) => this.logger.warn(`graph recordNode failed: ${String(err)}`));
+      }
+    }
 
     return this.prisma.scamMirrorSession.update({
       where: { id: session.id },

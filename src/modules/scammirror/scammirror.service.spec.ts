@@ -78,10 +78,14 @@ const USER = {
   role: 'INDIVIDUAL',
 } as never;
 
+function makeGraph() {
+  return { raw: { recordNode: jest.fn(async () => ({ id: 'node-1' })) } as never };
+}
+
 describe('ScamMirrorService.start', () => {
   it('opens an ACTIVE session with the persona + scenario', async () => {
     const prisma = makePrisma({});
-    const svc = new ScamMirrorService(prisma.raw, makeEvidence().raw, makeGuardianPause().raw);
+    const svc = new ScamMirrorService(prisma.raw, makeEvidence().raw, makeGuardianPause().raw, makeGraph().raw);
 
     const row = await svc.start(USER, {
       persona: 'TECH_SUPPORT',
@@ -101,7 +105,7 @@ describe('ScamMirrorService.recordInput', () => {
     const prisma = makePrisma({
       existing: { id: 'sess-1', status: 'ACTIVE', persona: 'TECH_SUPPORT' },
     });
-    const svc = new ScamMirrorService(prisma.raw, makeEvidence().raw, makeGuardianPause().raw);
+    const svc = new ScamMirrorService(prisma.raw, makeEvidence().raw, makeGuardianPause().raw, makeGraph().raw);
 
     await svc.recordInput(USER, 'sess-1', {
       role: TurnRole.SCAMMER,
@@ -125,7 +129,7 @@ describe('ScamMirrorService.recordInput', () => {
         tacticsObserved: ['URGENCY'],
       },
     });
-    const svc = new ScamMirrorService(prisma.raw, makeEvidence().raw, makeGuardianPause().raw);
+    const svc = new ScamMirrorService(prisma.raw, makeEvidence().raw, makeGuardianPause().raw, makeGraph().raw);
 
     await svc.recordInput(USER, 'sess-1', {
       role: TurnRole.SCAMMER,
@@ -142,7 +146,7 @@ describe('ScamMirrorService.recordInput', () => {
     });
     const evidence = makeEvidence();
     const gp = makeGuardianPause();
-    const svc = new ScamMirrorService(prisma.raw, evidence.raw, gp.raw);
+    const svc = new ScamMirrorService(prisma.raw, evidence.raw, gp.raw, makeGraph().raw);
 
     await svc.recordInput(USER, 'sess-1', {
       role: TurnRole.USER,
@@ -170,7 +174,7 @@ describe('ScamMirrorService.recordInput', () => {
 
   it('throws NotFound for a session that does not belong to the user', async () => {
     const prisma = makePrisma({ existing: null });
-    const svc = new ScamMirrorService(prisma.raw, makeEvidence().raw, makeGuardianPause().raw);
+    const svc = new ScamMirrorService(prisma.raw, makeEvidence().raw, makeGuardianPause().raw, makeGraph().raw);
 
     await expect(
       svc.recordInput(USER, 'nope', { role: TurnRole.USER, text: 'hi' }),
@@ -181,7 +185,7 @@ describe('ScamMirrorService.recordInput', () => {
     const prisma = makePrisma({
       existing: { id: 'sess-1', status: 'ENDED_LEARNED' },
     });
-    const svc = new ScamMirrorService(prisma.raw, makeEvidence().raw, makeGuardianPause().raw);
+    const svc = new ScamMirrorService(prisma.raw, makeEvidence().raw, makeGuardianPause().raw, makeGraph().raw);
 
     await expect(
       svc.recordInput(USER, 'sess-1', { role: TurnRole.USER, text: 'hi' }),
@@ -195,7 +199,7 @@ describe('ScamMirrorService.end', () => {
       existing: { id: 'sess-1', status: 'ACTIVE', persona: 'ROMANCE' },
     });
     const evidence = makeEvidence();
-    const svc = new ScamMirrorService(prisma.raw, evidence.raw, makeGuardianPause().raw);
+    const svc = new ScamMirrorService(prisma.raw, evidence.raw, makeGuardianPause().raw, makeGraph().raw);
 
     await svc.end(USER, 'sess-1', true);
 
@@ -213,7 +217,7 @@ describe('ScamMirrorService.end', () => {
       existing: { id: 'sess-1', status: 'ACTIVE', persona: 'ROMANCE' },
     });
     const evidence = makeEvidence();
-    const svc = new ScamMirrorService(prisma.raw, evidence.raw, makeGuardianPause().raw);
+    const svc = new ScamMirrorService(prisma.raw, evidence.raw, makeGuardianPause().raw, makeGraph().raw);
 
     await svc.end(USER, 'sess-1', false);
 

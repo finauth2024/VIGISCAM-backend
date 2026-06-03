@@ -9,6 +9,7 @@ import {
   ProtectionEnforcementService,
 } from '../protection-settings/protection-enforcement.service';
 import { RiskEventRecorderService } from '../risk-events/risk-event-recorder.service';
+import { FraudGraphService } from '../fraud-graph/fraud-graph.service';
 import { TrustedContactReviewService } from '../trusted-contact-review/trusted-contact-review.service';
 import { isAddressValid } from './address-validators';
 import { CheckWalletDto } from './dto/check-wallet.dto';
@@ -36,6 +37,7 @@ export class WalletGuardService {
     private readonly trustedContactReview: TrustedContactReviewService,
     private readonly enforcement: ProtectionEnforcementService,
     private readonly riskEvents: RiskEventRecorderService,
+    private readonly graph: FraudGraphService,
   ) {}
 
   async check(user: AuthenticatedUser, dto: CheckWalletDto): Promise<WalletCheck> {
@@ -139,6 +141,17 @@ export class WalletGuardService {
             : 'PROCEED_WITH_CAUTION',
       metadata: { walletCheckId: created.id, evidenceEventId: evidence.id },
     });
+
+    // CP-12 — project the wallet onto the Identity Collision Graph.
+    await this.graph
+      .recordNode({
+        indicatorType: 'CRYPTO_WALLET',
+        indicatorValue: dto.address,
+        category: 'CRYPTO_SCAM',
+        riskScore: scoring.score,
+        source: 'WALLETGUARD',
+      })
+      .catch((err: unknown) => this.logger.warn(`graph recordNode failed: ${String(err)}`));
 
     return this.prisma.walletCheck.update({
       where: { id: created.id },
