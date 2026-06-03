@@ -187,6 +187,37 @@ export class TrustedContactReviewService {
     });
   }
 
+  /**
+   * CP-2 enforcement: true iff an APPROVE_AFTER_VERIFICATION decision exists
+   * for this held event. The protection modules call this before releasing an
+   * action that policy marked trustedContactReviewRequired.
+   */
+  async hasApprovedReview(
+    triggerModule: TrustedContactReviewTriggerModule,
+    triggerEventId: string,
+  ): Promise<boolean> {
+    const approved = await this.prisma.trustedContactReview.findFirst({
+      where: {
+        triggerModule,
+        triggerEventId,
+        status: 'DECIDED',
+        decision: 'APPROVE_AFTER_VERIFICATION',
+      },
+    });
+    return Boolean(approved);
+  }
+
+  /** Latest review (any status) for a held event, or null. */
+  latestReview(
+    triggerModule: TrustedContactReviewTriggerModule,
+    triggerEventId: string,
+  ): Promise<TrustedContactReview | null> {
+    return this.prisma.trustedContactReview.findFirst({
+      where: { triggerModule, triggerEventId },
+      orderBy: { requestedAt: 'desc' },
+    });
+  }
+
   // ───────────────────────────────────────────────────────────────────────────
 
   private async resolveContact(input: RequestReviewInput): Promise<TrustedContact | null> {

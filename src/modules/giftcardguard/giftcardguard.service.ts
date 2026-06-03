@@ -4,6 +4,10 @@ import { AuthenticatedUser } from '../../common/auth/auth.types';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { EvidenceService } from '../evidence-vault/evidence.service';
 import { GuardianPauseService } from '../guardian-pause/guardian-pause.service';
+import {
+  DecisionKind,
+  ProtectionEnforcementService,
+} from '../protection-settings/protection-enforcement.service';
 import { TrustedContactReviewService } from '../trusted-contact-review/trusted-contact-review.service';
 import { DecideGiftCardDto, GiftCardGuardUserDecision } from './dto/decide-giftcard.dto';
 import { ScanGiftCardDto } from './dto/scan-giftcard.dto';
@@ -29,6 +33,7 @@ export class GiftCardGuardService {
     private readonly evidence: EvidenceService,
     private readonly guardianPause: GuardianPauseService,
     private readonly trustedContactReview: TrustedContactReviewService,
+    private readonly enforcement: ProtectionEnforcementService,
   ) {}
 
   async scan(user: AuthenticatedUser, dto: ScanGiftCardDto): Promise<GiftCardWarning> {
@@ -130,6 +135,17 @@ export class GiftCardGuardService {
     if (existing.decision !== ('PENDING' as GiftCardGuardDecision)) {
       throw new BadRequestException(`Warning already decided (${existing.decision})`);
     }
+
+    // CP-2 enforcement (Elder Mode / trusted-contact).
+    const decisionKind: DecisionKind =
+      dto.decision === GiftCardGuardUserDecision.CONTINUED_ANYWAY ? 'CONTINUE' : 'OTHER';
+    await this.enforcement.enforceDecision(user, {
+      module: 'GIFTCARDGUARD',
+      eventId: existing.id,
+      riskLevel: existing.riskLevel,
+      amountMinor: existing.denominationMinor,
+      decisionKind,
+    });
 
     const nextDecision = dto.decision as unknown as GiftCardGuardDecision;
     const updated = await this.prisma.giftCardWarning.update({

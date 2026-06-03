@@ -4,6 +4,10 @@ import { AuthenticatedUser } from '../../common/auth/auth.types';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { EvidenceService } from '../evidence-vault/evidence.service';
 import { GuardianPauseService } from '../guardian-pause/guardian-pause.service';
+import {
+  DecisionKind,
+  ProtectionEnforcementService,
+} from '../protection-settings/protection-enforcement.service';
 import { TrustedContactReviewService } from '../trusted-contact-review/trusted-contact-review.service';
 import { CheckScamHoldDto } from './dto/check-scamhold.dto';
 import { DecideScamHoldDto, ScamHoldDecision } from './dto/decide-scamhold.dto';
@@ -31,6 +35,7 @@ export class ScamHoldService {
     private readonly evidence: EvidenceService,
     private readonly guardianPause: GuardianPauseService,
     private readonly trustedContactReview: TrustedContactReviewService,
+    private readonly enforcement: ProtectionEnforcementService,
   ) {}
 
   async check(user: AuthenticatedUser, dto: CheckScamHoldDto): Promise<ScamHoldEvent> {
@@ -133,6 +138,24 @@ export class ScamHoldService {
     if (existing.status !== ('PENDING' as ScamHoldStatus)) {
       throw new BadRequestException(`ScamHold already decided (${existing.status})`);
     }
+
+    // CP-2 enforcement (Elder Mode / trusted-contact): refuse CONTINUE_ANYWAY
+    // when policy disallows it, and refuse RELEASE_AFTER_VERIFICATION until a
+    // required trusted-contact approval exists. Throws ForbiddenException +
+    // logs the blocked override to Evidence Vault + AuditLog.
+    const decisionKind: DecisionKind =
+      dto.decision === ScamHoldDecision.CONTINUE_ANYWAY
+        ? 'CONTINUE'
+        : dto.decision === ScamHoldDecision.RELEASE_AFTER_VERIFICATION
+          ? 'RELEASE'
+          : 'OTHER';
+    await this.enforcement.enforceDecision(user, {
+      module: 'SCAMHOLD',
+      eventId: existing.id,
+      riskLevel: existing.riskLevel,
+      amountMinor: existing.amountMinor,
+      decisionKind,
+    });
 
     const nextStatus: ScamHoldStatus = dto.decision as unknown as ScamHoldStatus;
 

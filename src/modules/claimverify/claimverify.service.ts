@@ -4,6 +4,10 @@ import { AuthenticatedUser } from '../../common/auth/auth.types';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { EvidenceService } from '../evidence-vault/evidence.service';
 import { GuardianPauseService } from '../guardian-pause/guardian-pause.service';
+import {
+  DecisionKind,
+  ProtectionEnforcementService,
+} from '../protection-settings/protection-enforcement.service';
 import { TrustedContactReviewService } from '../trusted-contact-review/trusted-contact-review.service';
 import { ClaimVerifyUserDecision, DecideClaimDto } from './dto/decide-claim.dto';
 import { VerifyClaimDto } from './dto/verify-claim.dto';
@@ -26,6 +30,7 @@ export class ClaimVerifyService {
     private readonly evidence: EvidenceService,
     private readonly guardianPause: GuardianPauseService,
     private readonly trustedContactReview: TrustedContactReviewService,
+    private readonly enforcement: ProtectionEnforcementService,
   ) {}
 
   async verify(user: AuthenticatedUser, dto: VerifyClaimDto): Promise<ClaimVerification> {
@@ -134,6 +139,22 @@ export class ClaimVerifyService {
     if (existing.decision !== ('PENDING' as ClaimVerifyDecision)) {
       throw new BadRequestException(`Claim already decided (${existing.decision})`);
     }
+
+
+    // CP-2 enforcement (Elder Mode / trusted-contact).
+    const decisionKind: DecisionKind =
+      dto.decision === ClaimVerifyUserDecision.CONTINUED_ANYWAY
+        ? 'CONTINUE'
+        : dto.decision === ClaimVerifyUserDecision.TRUSTED
+          ? 'RELEASE'
+          : 'OTHER';
+    await this.enforcement.enforceDecision(user, {
+      module: 'CLAIMVERIFY',
+      eventId: existing.id,
+      riskLevel: existing.riskLevel,
+      amountMinor: undefined,
+      decisionKind,
+    });
 
     const nextDecision = dto.decision as unknown as ClaimVerifyDecision;
     const updated = await this.prisma.claimVerification.update({

@@ -71,6 +71,23 @@ function makeTcr() {
   };
 }
 
+// Permissive enforcement mock (CP-2 enforcement is tested in
+// protection-policy.service.spec.ts); never blocks here.
+function makeEnforcement() {
+  const permissive = {
+    continueAnywayAllowed: true,
+    trustedContactReviewRequired: false,
+    guardianPauseDurationSeconds: 30,
+    reasons: [] as string[],
+  };
+  return {
+    raw: {
+      enforceDecision: jest.fn(async () => permissive),
+      evaluate: jest.fn(async () => permissive),
+    } as never,
+  };
+}
+
 const USER = {
   userId: 'user-1',
   email: 'u@example.com',
@@ -83,7 +100,7 @@ describe('GiftCardGuardService.scan', () => {
     const prisma = makePrisma({});
     const evidence = makeEvidence();
     const gp = makeGuardianPause();
-    const svc = new GiftCardGuardService(prisma.raw, evidence.raw, gp.raw, makeTcr().raw);
+    const svc = new GiftCardGuardService(prisma.raw, evidence.raw, gp.raw, makeTcr().raw, makeEnforcement().raw);
 
     const row = await svc.scan(USER, {
       cardBrand: 'Amazon',
@@ -110,7 +127,7 @@ describe('GiftCardGuardService.scan', () => {
   it('on HIGH risk (code reveal + impersonation), pulls Guardian Pause', async () => {
     const prisma = makePrisma({});
     const gp = makeGuardianPause();
-    const svc = new GiftCardGuardService(prisma.raw, makeEvidence().raw, gp.raw, makeTcr().raw);
+    const svc = new GiftCardGuardService(prisma.raw, makeEvidence().raw, gp.raw, makeTcr().raw, makeEnforcement().raw);
 
     await svc.scan(USER, {
       codeRevealRequested: true,
@@ -133,7 +150,7 @@ describe('GiftCardGuardService.scan', () => {
   it('on CRITICAL risk, pulls Guardian Pause with riskLevel CRITICAL', async () => {
     const prisma = makePrisma({});
     const gp = makeGuardianPause();
-    const svc = new GiftCardGuardService(prisma.raw, makeEvidence().raw, gp.raw, makeTcr().raw);
+    const svc = new GiftCardGuardService(prisma.raw, makeEvidence().raw, gp.raw, makeTcr().raw, makeEnforcement().raw);
 
     await svc.scan(USER, {
       codeRevealRequested: true,
@@ -155,6 +172,7 @@ describe('GiftCardGuardService.scan', () => {
       makeEvidence().raw,
       makeGuardianPause().raw,
       makeTcr().raw,
+      makeEnforcement().raw,
     );
 
     await svc.scan(USER, {});
@@ -174,6 +192,7 @@ describe('GiftCardGuardService.decide', () => {
       makeEvidence().raw,
       makeGuardianPause().raw,
       makeTcr().raw,
+      makeEnforcement().raw,
     );
     await expect(
       svc.decide(USER, 'nope', {
@@ -190,6 +209,7 @@ describe('GiftCardGuardService.decide', () => {
       makeEvidence().raw,
       makeGuardianPause().raw,
       makeTcr().raw,
+      makeEnforcement().raw,
     );
     await expect(
       svc.decide(USER, 'warn-1', {
@@ -208,6 +228,7 @@ describe('GiftCardGuardService.decide', () => {
       evidence.raw,
       makeGuardianPause().raw,
       makeTcr().raw,
+      makeEnforcement().raw,
     );
 
     await svc.decide(USER, 'warn-1', {
@@ -233,6 +254,7 @@ describe('GiftCardGuardService.decide', () => {
       makeEvidence().raw,
       makeGuardianPause().raw,
       makeTcr().raw,
+      makeEnforcement().raw,
     );
     await svc.decide(USER, 'warn-1', {
       decision: GiftCardGuardUserDecision.ESCALATED_TO_TRUSTED_CONTACT,

@@ -73,6 +73,24 @@ function makeTcr() {
   };
 }
 
+// Permissive enforcement mock — CP-2 enforcement is unit-tested separately in
+// protection-policy.service.spec.ts; here it just satisfies the constructor and
+// never blocks, so the existing decide() behaviour is unchanged.
+function makeEnforcement() {
+  const permissive = {
+    continueAnywayAllowed: true,
+    trustedContactReviewRequired: false,
+    guardianPauseDurationSeconds: 30,
+    reasons: [] as string[],
+  };
+  return {
+    raw: {
+      enforceDecision: jest.fn(async () => permissive),
+      evaluate: jest.fn(async () => permissive),
+    } as never,
+  };
+}
+
 const USER = {
   userId: 'user-1',
   email: 'u@example.com',
@@ -85,7 +103,7 @@ describe('ScamHoldService.check', () => {
     const prisma = makePrisma({});
     const evidence = makeEvidence();
     const gp = makeGuardianPause();
-    const svc = new ScamHoldService(prisma.raw, evidence.raw, gp.raw, makeTcr().raw);
+    const svc = new ScamHoldService(prisma.raw, evidence.raw, gp.raw, makeTcr().raw, makeEnforcement().raw);
 
     const row = await svc.check(USER, {
       transactionType: 'BANK_TRANSFER',
@@ -115,7 +133,7 @@ describe('ScamHoldService.check', () => {
   it('on CRITICAL risk, pulls Guardian Pause and stores its id on the row', async () => {
     const prisma = makePrisma({});
     const gp = makeGuardianPause();
-    const svc = new ScamHoldService(prisma.raw, makeEvidence().raw, gp.raw, makeTcr().raw);
+    const svc = new ScamHoldService(prisma.raw, makeEvidence().raw, gp.raw, makeTcr().raw, makeEnforcement().raw);
 
     await svc.check(USER, {
       transactionType: 'CRYPTO',
@@ -148,6 +166,7 @@ describe('ScamHoldService.check', () => {
       makeEvidence().raw,
       makeGuardianPause().raw,
       makeTcr().raw,
+      makeEnforcement().raw,
     );
 
     await svc.check(USER, {
@@ -172,6 +191,7 @@ describe('ScamHoldService.decide', () => {
       makeEvidence().raw,
       makeGuardianPause().raw,
       makeTcr().raw,
+      makeEnforcement().raw,
     );
     await expect(svc.decide(USER, 'nope', { decision: ScamHoldDecision.BLOCK })).rejects.toThrow(
       NotFoundException,
@@ -186,6 +206,7 @@ describe('ScamHoldService.decide', () => {
       makeEvidence().raw,
       makeGuardianPause().raw,
       makeTcr().raw,
+      makeEnforcement().raw,
     );
     await expect(svc.decide(USER, 'hold-1', { decision: ScamHoldDecision.BLOCK })).rejects.toThrow(
       BadRequestException,
@@ -202,6 +223,7 @@ describe('ScamHoldService.decide', () => {
       evidence.raw,
       makeGuardianPause().raw,
       makeTcr().raw,
+      makeEnforcement().raw,
     );
 
     await svc.decide(USER, 'hold-1', {
@@ -228,6 +250,7 @@ describe('ScamHoldService.decide', () => {
       evidence.raw,
       makeGuardianPause().raw,
       makeTcr().raw,
+      makeEnforcement().raw,
     );
     await svc.decide(USER, 'hold-1', {
       decision: ScamHoldDecision.CONTINUE_ANYWAY,

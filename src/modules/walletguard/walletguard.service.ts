@@ -4,6 +4,10 @@ import { AuthenticatedUser } from '../../common/auth/auth.types';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { EvidenceService } from '../evidence-vault/evidence.service';
 import { GuardianPauseService } from '../guardian-pause/guardian-pause.service';
+import {
+  DecisionKind,
+  ProtectionEnforcementService,
+} from '../protection-settings/protection-enforcement.service';
 import { TrustedContactReviewService } from '../trusted-contact-review/trusted-contact-review.service';
 import { isAddressValid } from './address-validators';
 import { CheckWalletDto } from './dto/check-wallet.dto';
@@ -29,6 +33,7 @@ export class WalletGuardService {
     private readonly evidence: EvidenceService,
     private readonly guardianPause: GuardianPauseService,
     private readonly trustedContactReview: TrustedContactReviewService,
+    private readonly enforcement: ProtectionEnforcementService,
   ) {}
 
   async check(user: AuthenticatedUser, dto: CheckWalletDto): Promise<WalletCheck> {
@@ -140,6 +145,22 @@ export class WalletGuardService {
     if (existing.decision !== ('PENDING' as WalletGuardDecision)) {
       throw new BadRequestException(`Wallet check already decided (${existing.decision})`);
     }
+
+
+    // CP-2 enforcement (Elder Mode / trusted-contact).
+    const decisionKind: DecisionKind =
+      dto.decision === WalletGuardUserDecision.CONTINUED_ANYWAY
+        ? 'CONTINUE'
+        : dto.decision === WalletGuardUserDecision.VALIDATED
+          ? 'RELEASE'
+          : 'OTHER';
+    await this.enforcement.enforceDecision(user, {
+      module: 'WALLETGUARD',
+      eventId: existing.id,
+      riskLevel: existing.riskLevel,
+      amountMinor: undefined,
+      decisionKind,
+    });
 
     const nextDecision = dto.decision as unknown as WalletGuardDecision;
     const updated = await this.prisma.walletCheck.update({
