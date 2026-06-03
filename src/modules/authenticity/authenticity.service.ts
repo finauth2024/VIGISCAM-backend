@@ -115,6 +115,11 @@ export class AuthenticityService {
         output: output as unknown as Prisma.InputJsonValue,
         confidence: output.score,
         durationMs,
+        // CP-7 — surface the worker's human-review flag so the AI governance
+        // review queue picks it up.
+        requiresHumanReview: Boolean(
+          (output.decision as { requiresHumanReview?: boolean } | undefined)?.requiresHumanReview,
+        ),
       },
     });
 

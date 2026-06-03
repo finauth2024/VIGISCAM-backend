@@ -1249,13 +1249,89 @@ model AIDecision {
   confidence   Int?
   durationMs   Int?
   error        String?
+  /// CP-7 — reviewer feedback loop (brief #13 traceable + reviewable AI).
+  requiresHumanReview Boolean                 @default(false)
+  reviewStatus        AIDecisionReviewStatus  @default(PENDING)
+  reviewerLabel       AIReviewerLabel?
+  reviewedByUserId    String?                 @db.Uuid
+  reviewedAt          DateTime?
+  reviewNotes         String?
+  /// Soft link to the registered model that produced this decision.
+  modelRegistryId     String?                 @db.Uuid
   createdAt    DateTime         @default(now())
 
   @@index([serviceKind])
   @@index([entityType, entityId])
   @@index([modelVersion])
   @@index([createdAt])
+  @@index([reviewStatus])
+  @@index([requiresHumanReview])
   @@map("ai_decisions")
+}
+
+enum AIDecisionReviewStatus {
+  PENDING
+  CONFIRMED
+  CORRECTED
+  NOT_REQUIRED
+}
+
+enum AIReviewerLabel {
+  CONFIRMED_CORRECT
+  FALSE_POSITIVE
+  FALSE_NEGATIVE
+  CORRECTED_CATEGORY
+  INCONCLUSIVE_ACCEPTED
+}
+
+enum ModelStatus {
+  DRAFT
+  SHADOW
+  ACTIVE
+  RETIRED
+}
+
+/// CP-7 — the model version registry (brief §5/§17/§18, reviewer #7). Every AI
+/// model the platform uses is registered with its version, lifecycle status and
+/// evaluation metrics, so each AIDecision can be traced to a governed model.
+model ModelRegistry {
+  id                String           @id @default(uuid()) @db.Uuid
+  /// The AIDecision.serviceKind this model serves (e.g. NLP_CLASSIFIER,
+  /// AUTHENTICITY_LIVE_FACE_SEAL, OSINT_ENRICHMENT).
+  serviceKind       String
+  modelName         String
+  version           String
+  status            ModelStatus      @default(DRAFT)
+  source            AIDecisionSource @default(EXTERNAL)
+  /// Free-form evaluation metrics (accuracy, false-negative rate, etc.).
+  metrics           Json?
+  notes             String?
+  registeredByUserId String?         @db.Uuid
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  @@unique([serviceKind, version])
+  @@index([serviceKind, status])
+  @@map("model_registry")
+}
+
+/// CP-7 — reviewer corrections of AI decisions. The labelled feedback set is the
+/// substrate for active learning / model retraining (reviewer #7).
+model ModelFeedback {
+  id               String          @id @default(uuid()) @db.Uuid
+  aiDecisionId     String          @db.Uuid
+  serviceKind      String
+  modelVersion     String
+  reviewerLabel    AIReviewerLabel
+  correctedOutput  Json?
+  notes            String?
+  reviewedByUserId String          @db.Uuid
+  createdAt        DateTime        @default(now())
+
+  @@index([serviceKind])
+  @@index([aiDecisionId])
+  @@index([createdAt])
+  @@map("model_feedback")
 }
 
 // ────────── Vector embeddings + similarity (Phase 6B) ──────────
