@@ -1,4 +1,9 @@
-import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { TenantSubscription } from '@prisma/client';
 import type Stripe from 'stripe';
@@ -69,8 +74,9 @@ export class BillingService {
   // ─── Checkout + portal ──────────────────────────────────────────────────────
 
   async startCheckout(user: AuthenticatedUser, dto: StartCheckoutDto) {
+    this.assertBillingConfiguredInProduction();
     if (!PURCHASABLE_PLANS.includes(dto.plan)) {
-      throw new BadRequestException('Only PRO and ENTERPRISE plans are purchasable');
+      throw new BadRequestException('This plan is not purchasable');
     }
     const def = PLAN_REGISTRY[dto.plan];
     const priceId = def.priceEnvVar ? this.config.get<string>(def.priceEnvVar) : null;
@@ -115,11 +121,16 @@ export class BillingService {
       eventDescription: `Checkout started for ${dto.plan}`,
       metadata: { plan: dto.plan, sessionId: session.id },
     });
+    await this.recordBillingAudit(user.userId, 'CHECKOUT_STARTED', user.tenantId, {
+      plan: dto.plan,
+      sessionId: session.id,
+    });
 
     return { checkoutUrl: session.url, sessionId: session.id };
   }
 
   async openPortal(user: AuthenticatedUser) {
+    this.assertBillingConfiguredInProduction();
     const existing = await this.prisma.tenantSubscription.findUnique({
       where: { tenantId: user.tenantId },
     });
@@ -136,6 +147,7 @@ export class BillingService {
       customerId,
       returnUrl: `${appBase}/billing`,
     });
+    await this.recordBillingAudit(user.userId, 'PORTAL_OPENED', user.tenantId, { customerId });
     return { portalUrl: session.url };
   }
 
@@ -164,6 +176,10 @@ export class BillingService {
       eventType: 'BILLING_MANUAL_INVOICE_SET',
       eventDescription: `Manual-invoice billing set: ${dto.plan}`,
       metadata: { plan: dto.plan, note: dto.note ?? null },
+    });
+    await this.recordBillingAudit(admin.userId, 'MANUAL_INVOICE_SET', tenantId, {
+      plan: dto.plan,
+      note: dto.note ?? null,
     });
 
     return row;
@@ -252,15 +268,24 @@ export class BillingService {
   ): Promise<void> {
     const priceId = sub.items?.data?.[0]?.price?.id ?? null;
     const plan = this.planFromPriceId(priceId);
+    const nextStatus = deleted ? 'CANCELED' : mapStripeStatus(sub.status);
+    const nextPlan = deleted ? 'FREE' : plan;
     await this.upsertSubscription(tenantId, {
-      plan: deleted ? 'FREE' : plan,
-      status: deleted ? 'CANCELED' : mapStripeStatus(sub.status),
+      plan: nextPlan,
+      status: nextStatus,
       stripeSubscriptionId: sub.id,
       stripePriceId: priceId ?? undefined,
       currentPeriodEnd: sub.current_period_end
         ? new Date(sub.current_period_end * 1000)
         : undefined,
       cancelAtPeriodEnd: sub.cancel_at_period_end ?? false,
+    });
+    // CP-8 — audit the webhook-driven plan/status change (SYSTEM actor).
+    await this.recordBillingAudit(null, 'SUBSCRIPTION_STATE_CHANGED', tenantId, {
+      plan: nextPlan,
+      status: nextStatus,
+      stripeSubscriptionId: sub.id,
+      deleted,
     });
   }
 
@@ -302,6 +327,58 @@ export class BillingService {
       where: { tenantId },
       create: { tenantId, ...data },
       update: { ...data },
+    });
+  }
+
+  /**
+   * CP-8 — in production, billing must run against real Stripe. Refuse to issue
+   * stub checkout/portal URLs (reviewer #9: "remove placeholder checkout/portal
+   * behavior from production mode"). Stub mode stays available in dev/test.
+   */
+  private assertBillingConfiguredInProduction(): void {
+    const isProd = this.config.get<string>('nodeEnv') === 'production';
+    if (isProd && !this.stripe.isConfigured()) {
+      throw new ServiceUnavailableException(
+        'Billing is not available: Stripe is not configured in this environment.',
+      );
+    }
+  }
+
+  /** CP-8 — write an AuditLog row for every billing change. */
+  private async recordBillingAudit(
+    actorId: string | null,
+    action: string,
+    tenantId: string,
+    metadata: Record<string, unknown>,
+  ): Promise<void> {
+    await this.prisma.auditLog
+      .create({
+        data: {
+          actorId,
+          actorType: actorId ? 'USER' : 'SYSTEM',
+          action: `BILLING_${action}`,
+          targetType: 'TENANT_SUBSCRIPTION',
+          targetId: tenantId,
+          metadata: metadata as never,
+        },
+      })
+      .catch((err: unknown) => this.logger.warn(`billing audit write failed: ${String(err)}`));
+  }
+
+  /** CP-8 — admin audit surface: the recorded Stripe billing events. */
+  listBillingEvents(tenantId?: string, limit = 100) {
+    return this.prisma.billingEvent.findMany({
+      where: tenantId ? { tenantId } : {},
+      orderBy: { createdAt: 'desc' },
+      take: Math.min(Math.max(limit, 1), 500),
+      select: {
+        id: true,
+        stripeEventId: true,
+        type: true,
+        tenantId: true,
+        processedAt: true,
+        createdAt: true,
+      },
     });
   }
 }

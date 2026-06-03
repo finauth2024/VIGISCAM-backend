@@ -1,4 +1,4 @@
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, ServiceUnavailableException } from '@nestjs/common';
 import { BillingService } from './billing.service';
 
 function makePrisma(
@@ -42,6 +42,12 @@ function makePrisma(
           updatedEvents.push(args);
           return { id: 'be-1', ...args.data };
         }),
+      },
+      auditLog: {
+        create: jest.fn(async ({ data }: { data: Record<string, unknown> }) => ({
+          id: 'audit-1',
+          ...data,
+        })),
       },
     } as never,
     upserts,
@@ -167,6 +173,18 @@ describe('BillingService.startCheckout', () => {
     );
     await expect(svc.startCheckout(USER, { plan: 'FREE' } as never)).rejects.toThrow(
       BadRequestException,
+    );
+  });
+
+  it('CP-8: refuses checkout in production when Stripe is unconfigured (no stub URLs)', async () => {
+    const svc = new BillingService(
+      makePrisma().raw,
+      makeStripe(false).raw, // not configured
+      makeEvidence().raw,
+      makeConfig({ nodeEnv: 'production' }).raw,
+    );
+    await expect(svc.startCheckout(USER, { plan: 'BASIC' } as never)).rejects.toThrow(
+      ServiceUnavailableException,
     );
   });
 

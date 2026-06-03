@@ -8,6 +8,7 @@ import {
   Param,
   ParseUUIDPipe,
   Post,
+  Query,
   RawBodyRequest,
   Req,
   UseGuards,
@@ -66,6 +67,15 @@ export class BillingController {
     @Body() dto: SetManualInvoiceDto,
   ) {
     return this.billing.setManualInvoice(user, tenantId, dto);
+  }
+
+  @Get('events')
+  @ApiBearerAuth()
+  @UseGuards(InternalTenantGuard)
+  @Roles(MembershipRole.SUPER_ADMIN, MembershipRole.COMPLIANCE_OFFICER)
+  @ApiOperation({ summary: 'Billing audit trail — recorded Stripe events (internal admin/compliance)' })
+  events(@Query('tenantId') tenantId?: string) {
+    return this.billing.listBillingEvents(tenantId);
   }
 
   /**
