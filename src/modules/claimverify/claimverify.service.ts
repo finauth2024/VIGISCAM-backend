@@ -8,6 +8,7 @@ import {
   DecisionKind,
   ProtectionEnforcementService,
 } from '../protection-settings/protection-enforcement.service';
+import { RiskEventRecorderService } from '../risk-events/risk-event-recorder.service';
 import { TrustedContactReviewService } from '../trusted-contact-review/trusted-contact-review.service';
 import { ClaimVerifyUserDecision, DecideClaimDto } from './dto/decide-claim.dto';
 import { VerifyClaimDto } from './dto/verify-claim.dto';
@@ -31,6 +32,7 @@ export class ClaimVerifyService {
     private readonly guardianPause: GuardianPauseService,
     private readonly trustedContactReview: TrustedContactReviewService,
     private readonly enforcement: ProtectionEnforcementService,
+    private readonly riskEvents: RiskEventRecorderService,
   ) {}
 
   async verify(user: AuthenticatedUser, dto: VerifyClaimDto): Promise<ClaimVerification> {
@@ -115,6 +117,22 @@ export class ClaimVerifyService {
           'feed this into ScamPulse signal intake.',
       );
     }
+
+    // CP-3 — every module emits a unified RiskEvent.
+    await this.riskEvents.record(user, {
+      moduleSource: 'CLAIMVERIFY',
+      eventType: 'CLAIMVERIFY_VERIFY',
+      riskScore: scoring.score,
+      riskLevel: scoring.level,
+      triggerReason: `Claim verification flagged as ${scoring.level} risk`,
+      recommendedAction:
+        scoring.level === 'CRITICAL'
+          ? 'DO_NOT_PROCEED'
+          : scoring.level === 'HIGH'
+            ? 'VERIFY_BEFORE_PROCEEDING'
+            : 'PROCEED_WITH_CAUTION',
+      metadata: { claimVerificationId: created.id, evidenceEventId: evidence.id },
+    });
 
     return this.prisma.claimVerification.update({
       where: { id: created.id },

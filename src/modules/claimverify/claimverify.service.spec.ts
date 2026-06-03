@@ -88,6 +88,10 @@ function makeEnforcement() {
   };
 }
 
+function makeRiskEvents() {
+  return { raw: { record: jest.fn(async () => ({ id: 're-1' })) } as never };
+}
+
 const USER = {
   userId: 'user-1',
   email: 'u@example.com',
@@ -99,7 +103,7 @@ describe('ClaimVerifyService.verify', () => {
   it('a JOB claim with no signals is LOW, no Guardian Pause', async () => {
     const prisma = makePrisma({});
     const gp = makeGuardianPause();
-    const svc = new ClaimVerifyService(prisma.raw, makeEvidence().raw, gp.raw, makeTcr().raw, makeEnforcement().raw);
+    const svc = new ClaimVerifyService(prisma.raw, makeEvidence().raw, gp.raw, makeTcr().raw, makeEnforcement().raw, makeRiskEvents().raw);
 
     await svc.verify(USER, {
       claimType: 'JOB',
@@ -117,7 +121,7 @@ describe('ClaimVerifyService.verify', () => {
     const prisma = makePrisma({});
     const gp = makeGuardianPause();
     const evidence = makeEvidence();
-    const svc = new ClaimVerifyService(prisma.raw, evidence.raw, gp.raw, makeTcr().raw, makeEnforcement().raw);
+    const svc = new ClaimVerifyService(prisma.raw, evidence.raw, gp.raw, makeTcr().raw, makeEnforcement().raw, makeRiskEvents().raw);
 
     await svc.verify(USER, {
       claimType: 'ROMANCE',
@@ -148,6 +152,7 @@ describe('ClaimVerifyService.verify', () => {
       makeGuardianPause().raw,
       makeTcr().raw,
       makeEnforcement().raw,
+      makeRiskEvents().raw,
     );
 
     await svc.verify(USER, {
@@ -166,6 +171,7 @@ describe('ClaimVerifyService.verify', () => {
       makeGuardianPause().raw,
       makeTcr().raw,
       makeEnforcement().raw,
+      makeRiskEvents().raw,
     );
     await svc.verify(USER, {
       claimType: 'OIL_PROJECT',
@@ -188,6 +194,7 @@ describe('ClaimVerifyService.decide', () => {
       makeGuardianPause().raw,
       makeTcr().raw,
       makeEnforcement().raw,
+      makeRiskEvents().raw,
     );
     await expect(
       svc.decide(USER, 'nope', { decision: ClaimVerifyUserDecision.TRUSTED }),
@@ -203,6 +210,7 @@ describe('ClaimVerifyService.decide', () => {
       makeGuardianPause().raw,
       makeTcr().raw,
       makeEnforcement().raw,
+      makeRiskEvents().raw,
     );
     await expect(
       svc.decide(USER, 'claim-1', { decision: ClaimVerifyUserDecision.TRUSTED }),
@@ -220,6 +228,7 @@ describe('ClaimVerifyService.decide', () => {
       makeGuardianPause().raw,
       makeTcr().raw,
       makeEnforcement().raw,
+      makeRiskEvents().raw,
     );
 
     await svc.decide(USER, 'claim-1', {

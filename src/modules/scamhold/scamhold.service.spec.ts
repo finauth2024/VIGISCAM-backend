@@ -91,6 +91,10 @@ function makeEnforcement() {
   };
 }
 
+function makeRiskEvents() {
+  return { raw: { record: jest.fn(async () => ({ id: 're-1' })) } as never };
+}
+
 const USER = {
   userId: 'user-1',
   email: 'u@example.com',
@@ -103,7 +107,7 @@ describe('ScamHoldService.check', () => {
     const prisma = makePrisma({});
     const evidence = makeEvidence();
     const gp = makeGuardianPause();
-    const svc = new ScamHoldService(prisma.raw, evidence.raw, gp.raw, makeTcr().raw, makeEnforcement().raw);
+    const svc = new ScamHoldService(prisma.raw, evidence.raw, gp.raw, makeTcr().raw, makeEnforcement().raw, makeRiskEvents().raw);
 
     const row = await svc.check(USER, {
       transactionType: 'BANK_TRANSFER',
@@ -133,7 +137,7 @@ describe('ScamHoldService.check', () => {
   it('on CRITICAL risk, pulls Guardian Pause and stores its id on the row', async () => {
     const prisma = makePrisma({});
     const gp = makeGuardianPause();
-    const svc = new ScamHoldService(prisma.raw, makeEvidence().raw, gp.raw, makeTcr().raw, makeEnforcement().raw);
+    const svc = new ScamHoldService(prisma.raw, makeEvidence().raw, gp.raw, makeTcr().raw, makeEnforcement().raw, makeRiskEvents().raw);
 
     await svc.check(USER, {
       transactionType: 'CRYPTO',
@@ -167,6 +171,7 @@ describe('ScamHoldService.check', () => {
       makeGuardianPause().raw,
       makeTcr().raw,
       makeEnforcement().raw,
+      makeRiskEvents().raw,
     );
 
     await svc.check(USER, {
@@ -192,6 +197,7 @@ describe('ScamHoldService.decide', () => {
       makeGuardianPause().raw,
       makeTcr().raw,
       makeEnforcement().raw,
+      makeRiskEvents().raw,
     );
     await expect(svc.decide(USER, 'nope', { decision: ScamHoldDecision.BLOCK })).rejects.toThrow(
       NotFoundException,
@@ -207,6 +213,7 @@ describe('ScamHoldService.decide', () => {
       makeGuardianPause().raw,
       makeTcr().raw,
       makeEnforcement().raw,
+      makeRiskEvents().raw,
     );
     await expect(svc.decide(USER, 'hold-1', { decision: ScamHoldDecision.BLOCK })).rejects.toThrow(
       BadRequestException,
@@ -224,6 +231,7 @@ describe('ScamHoldService.decide', () => {
       makeGuardianPause().raw,
       makeTcr().raw,
       makeEnforcement().raw,
+      makeRiskEvents().raw,
     );
 
     await svc.decide(USER, 'hold-1', {
@@ -251,6 +259,7 @@ describe('ScamHoldService.decide', () => {
       makeGuardianPause().raw,
       makeTcr().raw,
       makeEnforcement().raw,
+      makeRiskEvents().raw,
     );
     await svc.decide(USER, 'hold-1', {
       decision: ScamHoldDecision.CONTINUE_ANYWAY,

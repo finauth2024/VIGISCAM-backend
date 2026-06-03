@@ -8,6 +8,7 @@ import {
   DecisionKind,
   ProtectionEnforcementService,
 } from '../protection-settings/protection-enforcement.service';
+import { RiskEventRecorderService } from '../risk-events/risk-event-recorder.service';
 import { TrustedContactReviewService } from '../trusted-contact-review/trusted-contact-review.service';
 import { isAddressValid } from './address-validators';
 import { CheckWalletDto } from './dto/check-wallet.dto';
@@ -34,6 +35,7 @@ export class WalletGuardService {
     private readonly guardianPause: GuardianPauseService,
     private readonly trustedContactReview: TrustedContactReviewService,
     private readonly enforcement: ProtectionEnforcementService,
+    private readonly riskEvents: RiskEventRecorderService,
   ) {}
 
   async check(user: AuthenticatedUser, dto: CheckWalletDto): Promise<WalletCheck> {
@@ -121,6 +123,22 @@ export class WalletGuardService {
       });
       guardianPauseId = pause.id;
     }
+
+    // CP-3 — every module emits a unified RiskEvent.
+    await this.riskEvents.record(user, {
+      moduleSource: 'WALLETGUARD',
+      eventType: 'WALLETGUARD_CHECK',
+      riskScore: scoring.score,
+      riskLevel: scoring.level,
+      triggerReason: `Wallet transfer flagged as ${scoring.level} risk`,
+      recommendedAction:
+        scoring.level === 'CRITICAL'
+          ? 'DO_NOT_PROCEED'
+          : scoring.level === 'HIGH'
+            ? 'VERIFY_BEFORE_PROCEEDING'
+            : 'PROCEED_WITH_CAUTION',
+      metadata: { walletCheckId: created.id, evidenceEventId: evidence.id },
+    });
 
     return this.prisma.walletCheck.update({
       where: { id: created.id },

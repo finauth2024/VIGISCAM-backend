@@ -8,6 +8,7 @@ import {
   DecisionKind,
   ProtectionEnforcementService,
 } from '../protection-settings/protection-enforcement.service';
+import { RiskEventRecorderService } from '../risk-events/risk-event-recorder.service';
 import { TrustedContactReviewService } from '../trusted-contact-review/trusted-contact-review.service';
 import { DecideGiftCardDto, GiftCardGuardUserDecision } from './dto/decide-giftcard.dto';
 import { ScanGiftCardDto } from './dto/scan-giftcard.dto';
@@ -34,6 +35,7 @@ export class GiftCardGuardService {
     private readonly guardianPause: GuardianPauseService,
     private readonly trustedContactReview: TrustedContactReviewService,
     private readonly enforcement: ProtectionEnforcementService,
+    private readonly riskEvents: RiskEventRecorderService,
   ) {}
 
   async scan(user: AuthenticatedUser, dto: ScanGiftCardDto): Promise<GiftCardWarning> {
@@ -111,6 +113,22 @@ export class GiftCardGuardService {
       });
       guardianPauseId = pause.id;
     }
+
+    // CP-3 — every module emits a unified RiskEvent.
+    await this.riskEvents.record(user, {
+      moduleSource: 'GIFTCARDGUARD',
+      eventType: 'GIFTCARDGUARD_SCAN',
+      riskScore: scoring.score,
+      riskLevel: scoring.level,
+      triggerReason: `Gift card request flagged as ${scoring.level} risk`,
+      recommendedAction:
+        scoring.level === 'CRITICAL'
+          ? 'DO_NOT_PROCEED'
+          : scoring.level === 'HIGH'
+            ? 'VERIFY_BEFORE_PROCEEDING'
+            : 'PROCEED_WITH_CAUTION',
+      metadata: { giftCardWarningId: created.id, evidenceEventId: evidence.id },
+    });
 
     return this.prisma.giftCardWarning.update({
       where: { id: created.id },

@@ -8,6 +8,7 @@ import {
   DecisionKind,
   ProtectionEnforcementService,
 } from '../protection-settings/protection-enforcement.service';
+import { RiskEventRecorderService } from '../risk-events/risk-event-recorder.service';
 import { TrustedContactReviewService } from '../trusted-contact-review/trusted-contact-review.service';
 import { CheckScamHoldDto } from './dto/check-scamhold.dto';
 import { DecideScamHoldDto, ScamHoldDecision } from './dto/decide-scamhold.dto';
@@ -36,6 +37,7 @@ export class ScamHoldService {
     private readonly guardianPause: GuardianPauseService,
     private readonly trustedContactReview: TrustedContactReviewService,
     private readonly enforcement: ProtectionEnforcementService,
+    private readonly riskEvents: RiskEventRecorderService,
   ) {}
 
   async check(user: AuthenticatedUser, dto: CheckScamHoldDto): Promise<ScamHoldEvent> {
@@ -114,6 +116,27 @@ export class ScamHoldService {
       });
       guardianPauseId = pause.id;
     }
+
+    // CP-3 — every module emits a unified RiskEvent.
+    await this.riskEvents.record(user, {
+      moduleSource: 'SCAMHOLD',
+      eventType: 'SCAMHOLD_CHECK',
+      riskScore: scoring.score,
+      riskLevel: scoring.level,
+      triggerReason: `${dto.transactionType.replace('_', ' ')} flagged as ${scoring.level} risk`,
+      recommendedAction:
+        scoring.level === 'CRITICAL'
+          ? 'DO_NOT_SEND'
+          : scoring.level === 'HIGH'
+            ? 'VERIFY_BEFORE_PROCEEDING'
+            : 'PROCEED_WITH_CAUTION',
+      detectedSignals: [
+        dto.urgencyDetected ? 'urgency_detected' : null,
+        dto.secrecyDetected ? 'secrecy_detected' : null,
+        dto.activeCommunication ? 'active_communication' : null,
+      ].filter((s): s is string => s !== null),
+      metadata: { scamHoldEventId: created.id, evidenceEventId: evidence.id },
+    });
 
     return this.prisma.scamHoldEvent.update({
       where: { id: created.id },
