@@ -35,10 +35,21 @@ function Post($path, $bodyObj, $token) {
 }
 
 function DownloadB64($url) {
-  $wc = New-Object System.Net.WebClient
-  $wc.Headers.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) VIGISCAM-smoke")
-  $bytes = $wc.DownloadData($url)
-  return [Convert]::ToBase64String($bytes)
+  # Descriptive UA with contact, per Wikimedia's bot policy (a browser-spoofing
+  # UA gets 429-throttled). Retry with backoff on transient throttling.
+  $ua = "VIGISCAM-smoke/1.0 (+mailto:brennemantitus@gmail.com)"
+  for ($i = 1; $i -le 4; $i++) {
+    try {
+      $wc = New-Object System.Net.WebClient
+      $wc.Headers.Add("User-Agent", $ua)
+      $bytes = $wc.DownloadData($url)
+      return [Convert]::ToBase64String($bytes)
+    } catch {
+      if ($i -eq 4) { throw }
+      Write-Host "   fetch attempt $i failed ($($_.Exception.Message.Split([Environment]::NewLine)[0])) — retrying..." -ForegroundColor DarkYellow
+      Start-Sleep -Seconds ($i * 3)
+    }
+  }
 }
 
 Write-Host "1) Login..." -ForegroundColor Cyan
