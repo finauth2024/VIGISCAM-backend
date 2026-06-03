@@ -30,4 +30,10 @@ export class OsintController {
   ) {
     return this.osint.list({ signalId, indicatorType, normalizedIndicator }, limit);
   }
+
+  @Get('providers')
+  @ApiOperation({ summary: 'OSINT provider catalog + which external feeds are live (CP-6).' })
+  providers() {
+    return this.osint.providerCatalog();
+  }
 }

@@ -3,6 +3,7 @@ import { IndicatorType, OsintEnrichment, Prisma, ScamSignal } from '@prisma/clie
 import { createHash } from 'crypto';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { OsintClient } from './osint.client';
+import { OsintProviderRegistry } from './providers/osint-provider.registry';
 
 const SNIPPET_LEN = 200;
 
@@ -22,7 +23,13 @@ export class OsintService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly client: OsintClient,
+    private readonly providers: OsintProviderRegistry,
   ) {}
+
+  /** CP-6 — the OSINT provider catalog + which external feeds are live. */
+  providerCatalog() {
+    return this.providers.catalog();
+  }
 
   /** Enrich a signal best-effort. No-op for non-enrichable indicator types. */
   async enrichSignal(signal: ScamSignal): Promise<OsintEnrichment | null> {
@@ -80,6 +87,49 @@ export class OsintService {
         durationMs,
       },
     });
+
+    // CP-6 — fan out to the external provider layer (WHOIS / passive DNS /
+    // reputation / blockchain / takedown / advisories). Each live provider that
+    // returns findings is stored as its own enrichment row. Providers that
+    // aren't configured (no API key) yield nothing and are skipped. Best-effort:
+    // never let provider enrichment break the structural pipeline.
+    try {
+      const runs = await this.providers.enrich({
+        indicatorType: signal.indicatorType,
+        normalizedIndicator: signal.normalizedIndicator,
+      });
+      for (const run of runs) {
+        if (!run.provider.isLive() && run.result.riskHints.length === 0) continue;
+        await this.prisma.osintEnrichment.upsert({
+          where: {
+            indicatorType_normalizedIndicator_provider: {
+              indicatorType: signal.indicatorType,
+              normalizedIndicator: signal.normalizedIndicator,
+              provider: run.provider.name,
+            },
+          },
+          create: {
+            signalId: signal.id,
+            indicatorType: signal.indicatorType,
+            normalizedIndicator: signal.normalizedIndicator,
+            provider: run.provider.name,
+            modelVersion: `provider:${run.provider.category}`,
+            source: run.provider.isLive() ? 'EXTERNAL' : 'STUB',
+            data: run.result.data as unknown as Prisma.InputJsonValue,
+            riskHints: run.result.riskHints,
+          },
+          update: {
+            signalId: signal.id,
+            source: run.provider.isLive() ? 'EXTERNAL' : 'STUB',
+            data: run.result.data as unknown as Prisma.InputJsonValue,
+            riskHints: run.result.riskHints,
+          },
+        });
+      }
+    } catch (err: unknown) {
+      this.logger.warn(`OSINT provider enrichment failed for ${signal.id}: ${String(err)}`);
+    }
+
     return enrichment;
   }
 
