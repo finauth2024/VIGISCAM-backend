@@ -6,6 +6,7 @@
  * No HTTP listener is started — we just construct the application context
  * far enough to build the Swagger document, then exit.
  */
+import { VersioningType } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { writeFileSync } from 'fs';
@@ -14,8 +15,11 @@ import { AppModule } from '../src/app.module';
 
 async function main(): Promise<void> {
   const app = await NestFactory.create(AppModule, { logger: false });
-  // Match main.ts so paths line up with what's actually served.
+  // Match main.ts so paths line up with what's actually served (incl. the
+  // URI version segment — without this the spec emits /api/<path> instead of
+  // the real /api/v1/<path>).
   app.setGlobalPrefix(process.env.API_PREFIX ?? 'api');
+  app.enableVersioning({ type: VersioningType.URI, defaultVersion: '1' });
 
   const config = new DocumentBuilder()
     .setTitle('VIGISCAM Backend API')
