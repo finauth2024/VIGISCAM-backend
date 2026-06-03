@@ -8,7 +8,7 @@ import {
   Post,
   Query,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { AuthenticatedUser } from '../../common/auth/auth.types';
 import { CurrentUser } from '../../common/auth/current-user.decorator';
 import { AlertsService } from './alerts.service';
@@ -21,6 +21,7 @@ export class AlertsController {
 
   @Get()
   @ApiOperation({ summary: 'List my alerts (pass ?unread=true for unread only)' })
+  @ApiQuery({ name: 'unread', required: false, description: 'Pass true for unread only' })
   list(@CurrentUser() user: AuthenticatedUser, @Query('unread') unread?: string) {
     return this.alerts.listForUser(user, unread === 'true');
   }

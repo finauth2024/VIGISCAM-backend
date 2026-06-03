@@ -9,7 +9,7 @@ import {
   Query,
   Req,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { Request } from 'express';
 import { AuthenticatedUser } from '../../common/auth/auth.types';
 import { CurrentUser } from '../../common/auth/current-user.decorator';
@@ -27,6 +27,7 @@ export class ReviewQueueController {
 
   @Get()
   @ApiOperation({ summary: 'List review-queue items (optionally filter by ?status=)' })
+  @ApiQuery({ name: 'status', required: false, description: 'ReviewQueueStatus filter' })
   list(@Query('status') status?: string) {
     return this.reviewQueue.list(status);
   }

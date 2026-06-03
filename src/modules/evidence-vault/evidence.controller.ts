@@ -13,7 +13,7 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { ApiBearerAuth, ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiConsumes, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { AuthenticatedUser } from '../../common/auth/auth.types';
 import { CurrentUser } from '../../common/auth/current-user.decorator';
 import { ShareEvidenceFileDto } from './dto/share-evidence-file.dto';
@@ -34,6 +34,8 @@ export class EvidenceController {
 
   @Get('timeline')
   @ApiOperation({ summary: 'Hash-chained evidence timeline for my tenant' })
+  @ApiQuery({ name: 'entityType', required: false, description: 'e.g. SCAM_SIGNAL' })
+  @ApiQuery({ name: 'entityId', required: false, description: 'Filter to one entity' })
   timeline(
     @CurrentUser() user: AuthenticatedUser,
     @Query('entityType') entityType?: string,

@@ -1,5 +1,5 @@
 import { Controller, Get, Param, ParseUUIDPipe, Query } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { MembershipRole } from '@prisma/client';
 import { Roles } from '../../common/auth/roles.decorator';
 import { ScamSignalsService } from './scam-signals.service';
@@ -17,6 +17,7 @@ export class ScamSignalsController {
 
   @Get()
   @ApiOperation({ summary: 'List scam signals (optionally filter by ?status=)' })
+  @ApiQuery({ name: 'status', required: false, description: 'ScamSignalStatus filter' })
   list(@Query('status') status?: string) {
     return this.scamSignals.listSignals(status);
   }

@@ -14,12 +14,7 @@
  *     tenant-gated (a 403 from a non-matching tenant proves the guard is
  *     mounted and enforced; a real BANK/PLATFORM tenant gets the data)
  */
-import {
-  ApiCaller,
-  disposeContractPrisma,
-  loadEnv,
-  login,
-} from '../contract/helpers';
+import { ApiCaller, disposeContractPrisma, loadEnv, login } from '../contract/helpers';
 
 const env = loadEnv();
 const describeIfConfigured = env ? describe : describe.skip;
