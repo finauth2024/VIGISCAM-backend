@@ -102,12 +102,17 @@ const FILE = {
   size: 11,
 };
 
+function makeQueue() {
+  return { raw: { enqueue: jest.fn(async () => null) } as never };
+}
+
 describe('EvidenceFileService.upload', () => {
   it('rejects with NotFound when the evidence event does not exist', async () => {
     const svc = new EvidenceFileService(
       makePrisma({ event: null }).raw,
       makeBlob().raw,
       makeEvidence().raw,
+      makeQueue().raw,
     );
     await expect(svc.upload(USER, 'no-such-event', FILE)).rejects.toThrow(NotFoundException);
   });
@@ -117,6 +122,7 @@ describe('EvidenceFileService.upload', () => {
       makePrisma({ event: { id: 'ev-1', tenantId: 'tenant-B' } }).raw,
       makeBlob().raw,
       makeEvidence().raw,
+      makeQueue().raw,
     );
     await expect(svc.upload(USER, 'ev-1', FILE)).rejects.toThrow(ForbiddenException);
   });
@@ -125,7 +131,7 @@ describe('EvidenceFileService.upload', () => {
     const prisma = makePrisma({ event: { id: 'ev-1', tenantId: 'tenant-A' } });
     const blob = makeBlob();
     const evidence = makeEvidence();
-    const svc = new EvidenceFileService(prisma.raw, blob.raw, evidence.raw);
+    const svc = new EvidenceFileService(prisma.raw, blob.raw, evidence.raw, makeQueue().raw);
 
     const row = await svc.upload(USER, 'ev-1', FILE, {
       legalHold: true,
@@ -162,7 +168,7 @@ describe('EvidenceFileService.upload', () => {
   it('falls back to a stub blobUri when BlobService is unconfigured', async () => {
     const prisma = makePrisma({ event: { id: 'ev-1', tenantId: 'tenant-A' } });
     const blob = makeBlob({ uploadResult: null });
-    const svc = new EvidenceFileService(prisma.raw, blob.raw, makeEvidence().raw);
+    const svc = new EvidenceFileService(prisma.raw, blob.raw, makeEvidence().raw, makeQueue().raw);
     await svc.upload(USER, 'ev-1', FILE);
     expect(String(prisma.created[0].blobUri)).toContain('blob://stub/ev-1/screenshot.png');
   });
@@ -179,7 +185,7 @@ describe('EvidenceFileService.generateShareLinks', () => {
     });
     const blob = makeBlob();
     const evidence = makeEvidence();
-    const svc = new EvidenceFileService(prisma.raw, blob.raw, evidence.raw);
+    const svc = new EvidenceFileService(prisma.raw, blob.raw, evidence.raw, makeQueue().raw);
 
     const out = await svc.generateShareLinks(USER, 'ev-1', { expiresInSeconds: 600 });
 
@@ -201,6 +207,7 @@ describe('EvidenceFileService.generateShareLinks', () => {
       }).raw,
       makeBlob().raw,
       makeEvidence().raw,
+      makeQueue().raw,
     );
     await expect(
       svc.generateShareLinks(USER, 'ev-1', { fileId: '00000000-0000-0000-0000-000000000000' }),
@@ -227,7 +234,7 @@ describe('EvidenceFileService.exportBundle', () => {
     });
     const blob = makeBlob();
     const evidence = makeEvidence();
-    const svc = new EvidenceFileService(prisma.raw, blob.raw, evidence.raw);
+    const svc = new EvidenceFileService(prisma.raw, blob.raw, evidence.raw, makeQueue().raw);
 
     const out = await svc.exportBundle(USER, 'ev-1');
 
@@ -262,7 +269,7 @@ describe('EvidenceFileService.publicSafeView', () => {
       ],
     });
     const blob = makeBlob();
-    const svc = new EvidenceFileService(prisma.raw, blob.raw, makeEvidence().raw);
+    const svc = new EvidenceFileService(prisma.raw, blob.raw, makeEvidence().raw, makeQueue().raw);
 
     const out = await svc.publicSafeView(USER, 'ev-1');
 
@@ -284,6 +291,7 @@ describe('EvidenceFileService.setLegalHold', () => {
       makePrisma({ fileRow: null }).raw,
       makeBlob().raw,
       makeEvidence().raw,
+      makeQueue().raw,
     );
     await expect(svc.setLegalHold(USER, 'nope', true)).rejects.toThrow(NotFoundException);
   });
@@ -295,6 +303,7 @@ describe('EvidenceFileService.setLegalHold', () => {
       }).raw,
       makeBlob().raw,
       makeEvidence().raw,
+      makeQueue().raw,
     );
     await expect(svc.setLegalHold(USER, 'file-1', true)).rejects.toThrow(ForbiddenException);
   });
@@ -306,6 +315,7 @@ describe('EvidenceFileService.setLegalHold', () => {
       }).raw,
       makeBlob().raw,
       makeEvidence().raw,
+      makeQueue().raw,
     );
     await expect(svc.setLegalHold(USER, 'file-1', true)).rejects.toThrow(BadRequestException);
   });
@@ -315,11 +325,58 @@ describe('EvidenceFileService.setLegalHold', () => {
       fileRow: { id: 'file-1', tenantId: 'tenant-A', legalHold: false, filename: 'x' },
     });
     const evidence = makeEvidence();
-    const svc = new EvidenceFileService(prisma.raw, makeBlob().raw, evidence.raw);
+    const svc = new EvidenceFileService(prisma.raw, makeBlob().raw, evidence.raw, makeQueue().raw);
     await svc.setLegalHold(USER, 'file-1', true);
     expect(prisma.updated[0].data).toEqual({ legalHold: true });
     expect(evidence.appended[0]).toMatchObject({
       eventType: 'EVIDENCE_FILE_LEGAL_HOLD_SET',
     });
+  });
+});
+
+describe('EvidenceFileService.processBundle (CP-11)', () => {
+  it('builds a checksummed manifest, persists an EvidenceExportBundle, logs custody', async () => {
+    const created: Array<Record<string, unknown>> = [];
+    const appended: Array<Record<string, unknown>> = [];
+    const prisma = {
+      evidenceEvent: {
+        findUnique: jest.fn(async () => ({
+          id: 'ev-1',
+          tenantId: 'tenant-A',
+          eventType: 'SCAMHOLD_OPENED',
+          occurredAt: new Date('2026-01-01'),
+          eventHash: 'abc123',
+        })),
+      },
+      evidenceFile: {
+        findMany: jest.fn(async () => [
+          {
+            id: 'file-1',
+            filename: 'shot.png',
+            mimeType: 'image/png',
+            sizeBytes: 11n,
+            sha256: 'f'.repeat(64),
+            uploadedAt: new Date('2026-01-01'),
+          },
+        ]),
+      },
+      evidenceExportBundle: {
+        create: jest.fn(async (args: { data: Record<string, unknown> }) => {
+          const row = { id: 'bundle-1', ...args.data };
+          created.push(row);
+          return row;
+        }),
+      },
+    } as never;
+    const evidence = { append: jest.fn(async (i: Record<string, unknown>) => { appended.push(i); return { id: 'e-1' }; }) } as never;
+    const svc = new EvidenceFileService(prisma, makeBlob().raw, evidence, makeQueue().raw);
+
+    const bundle = await svc.processBundle('ev-1', 'tenant-A', 'user-1');
+
+    expect(bundle.id).toBe('bundle-1');
+    expect(created[0]).toMatchObject({ tenantId: 'tenant-A', recordCount: 1, status: 'READY' });
+    expect(created[0].checksum).toMatch(/^[0-9a-f]{64}$/);
+    expect((created[0].bundle as { kind: string }).kind).toBe('VIGISCAM_EVIDENCE_BUNDLE');
+    expect(appended[0]).toMatchObject({ eventType: 'EVIDENCE_BUNDLE_PERSISTED' });
   });
 });

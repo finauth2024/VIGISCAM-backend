@@ -7,9 +7,12 @@ import {
 } from '@nestjs/common';
 import { EvidenceFile } from '@prisma/client';
 import { createHash } from 'crypto';
+import { EvidenceExportBundle } from '@prisma/client';
 import { AuthenticatedUser } from '../../common/auth/auth.types';
 import { BlobService } from '../../common/blob/blob.service';
 import { PrismaService } from '../../common/prisma/prisma.service';
+import { QUEUE_NAMES } from '../../common/queue/queue-names';
+import { QueueService } from '../../common/queue/queue.service';
 import { EvidenceService } from './evidence.service';
 
 /**
@@ -37,7 +40,115 @@ export class EvidenceFileService {
     private readonly prisma: PrismaService,
     private readonly blob: BlobService,
     private readonly evidence: EvidenceService,
+    private readonly queue: QueueService,
   ) {}
+
+  /**
+   * CP-11 — request a persisted, checksummed evidence export bundle. Enqueues
+   * the evidence-export queue; the EvidenceExportWorker builds + persists an
+   * EvidenceExportBundle (status READY) with a SHA-256 of the manifest. Falls
+   * back to synchronous processing when Redis is unset, so the call always
+   * produces a bundle.
+   */
+  async requestExportBundle(
+    user: AuthenticatedUser,
+    evidenceEventId: string,
+  ): Promise<{ queued: boolean; bundle?: EvidenceExportBundle }> {
+    const event = await this.requireEvent(user, evidenceEventId);
+    const jobId = await this.queue.enqueue(QUEUE_NAMES.EvidenceExport, {
+      evidenceEventId: event.id,
+      tenantId: event.tenantId ?? user.tenantId,
+      requestedByUserId: user.userId,
+    });
+    if (!jobId) {
+      const bundle = await this.processBundle(
+        event.id,
+        event.tenantId ?? user.tenantId,
+        user.userId,
+      );
+      return { queued: false, bundle };
+    }
+    return { queued: true };
+  }
+
+  /**
+   * CP-11 — build + persist the export bundle (called by the worker and by the
+   * synchronous fallback). The bundle is a frozen manifest of the event + its
+   * files (filename, mime, size, sha256), with a SHA-256 checksum over the
+   * canonical manifest so a third party can prove integrity. Chain-of-custody
+   * logged.
+   */
+  async processBundle(
+    evidenceEventId: string,
+    tenantId: string,
+    requestedByUserId: string,
+  ): Promise<EvidenceExportBundle> {
+    const event = await this.prisma.evidenceEvent.findUnique({
+      where: { id: evidenceEventId },
+      select: { id: true, tenantId: true, eventType: true, occurredAt: true, eventHash: true },
+    });
+    if (!event) throw new NotFoundException('Evidence event not found');
+    const files = await this.prisma.evidenceFile.findMany({
+      where: { evidenceEventId: event.id },
+      orderBy: { uploadedAt: 'asc' },
+    });
+
+    const manifest = {
+      kind: 'VIGISCAM_EVIDENCE_BUNDLE',
+      event: {
+        id: event.id,
+        eventType: event.eventType,
+        occurredAt: event.occurredAt,
+        eventHash: event.eventHash,
+      },
+      files: files.map((f) => ({
+        id: f.id,
+        filename: f.filename,
+        mimeType: f.mimeType,
+        sizeBytes: f.sizeBytes.toString(),
+        sha256: f.sha256,
+        uploadedAt: f.uploadedAt,
+      })),
+      generatedAt: new Date().toISOString(),
+      requestedByUserId,
+    };
+    const checksum = createHash('sha256')
+      .update(JSON.stringify(manifest))
+      .digest('hex');
+
+    const bundle = await this.prisma.evidenceExportBundle.create({
+      data: {
+        tenantId,
+        filters: { evidenceEventId: event.id } as never,
+        recordCount: files.length,
+        checksum,
+        bundle: manifest as never,
+        status: 'READY',
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      },
+    });
+
+    await this.evidence.append({
+      tenantId: event.tenantId,
+      actorId: requestedByUserId,
+      actorType: 'USER',
+      entityType: 'EVIDENCE_EXPORT_BUNDLE',
+      entityId: bundle.id,
+      eventType: 'EVIDENCE_BUNDLE_PERSISTED',
+      eventDescription: `Evidence bundle persisted (${files.length} file(s), checksum ${checksum.slice(0, 12)}…)`,
+      metadata: { evidenceEventId: event.id, recordCount: files.length, checksum },
+    });
+    return bundle;
+  }
+
+  /** CP-11 — fetch a persisted bundle (tenant-scoped). */
+  async getBundle(user: AuthenticatedUser, bundleId: string): Promise<EvidenceExportBundle> {
+    const bundle = await this.prisma.evidenceExportBundle.findUnique({ where: { id: bundleId } });
+    if (!bundle || bundle.tenantId !== user.tenantId) {
+      throw new NotFoundException('Export bundle not found');
+    }
+    return bundle;
+  }
 
   async upload(
     user: AuthenticatedUser,

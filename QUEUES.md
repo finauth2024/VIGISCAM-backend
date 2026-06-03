@@ -27,7 +27,7 @@ owning module's service (keeps logic testable + out of the worker).
 | `risk-processing` (AI scoring) | — | — | queue + payload defined; worker pending |
 | `wallet-checks` (wallet reputation) | — | — | queue + payload defined; worker pending |
 | `claim-verification` | — | — | queue + payload defined; worker pending |
-| `evidence-export` | — | — | wired in CP-11 (Evidence Vault production) |
+| `evidence-export` | `EvidenceFileService.requestExportBundle` / `POST /evidence/:eventId/export-bundle` | `EvidenceExportWorker` | ✅ live (CP-11) |
 
 The two live workers prove the end-to-end pattern (producer → queue → worker →
 service, with backoff + health). The remaining queues have their typed contract

@@ -104,13 +104,34 @@ export class EvidenceController {
   }
 
   @Post(':eventId/export')
-  @ApiOperation({ summary: 'Export an evidence bundle (manifest + signed URLs)' })
+  @ApiOperation({ summary: 'Export an evidence bundle (live manifest + signed URLs)' })
   @HttpCode(200)
   export(
     @CurrentUser() user: AuthenticatedUser,
     @Param('eventId', new ParseUUIDPipe()) eventId: string,
   ) {
     return this.files.exportBundle(user, eventId);
+  }
+
+  @Post(':eventId/export-bundle')
+  @ApiOperation({
+    summary: 'Request a persisted, checksummed evidence export bundle (async via worker)',
+  })
+  @HttpCode(202)
+  exportBundle(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('eventId', new ParseUUIDPipe()) eventId: string,
+  ) {
+    return this.files.requestExportBundle(user, eventId);
+  }
+
+  @Get('bundles/:bundleId')
+  @ApiOperation({ summary: 'Fetch a persisted evidence export bundle (manifest + checksum)' })
+  getBundle(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('bundleId', new ParseUUIDPipe()) bundleId: string,
+  ) {
+    return this.files.getBundle(user, bundleId);
   }
 
   @Get(':eventId/public-safe')
