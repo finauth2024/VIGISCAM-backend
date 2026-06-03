@@ -4,14 +4,14 @@
   live across the platform.
 
   Sends the image as base64 BYTES (downloaded locally) rather than a URL, so the
-  worker scores the exact same pixels the local eval did — no dependency on the
+  worker scores the exact same pixels the local eval did -- no dependency on the
   worker's outbound egress being able to fetch a third-party URL.
 
   Runs LIVE_FACE_SEAL on:
     - a known DEEPFAKE  -> expect result=FAIL, source=EXTERNAL
     - a known REAL face -> expect result=PASS, source=EXTERNAL
 
-  The `source` field is the key diagnostic:
+  The 'source' field is the key diagnostic:
     EXTERNAL = the real AI worker (ensemble) produced the verdict
     STUB     = the backend could NOT reach the worker and fell back
 
@@ -46,7 +46,7 @@ function DownloadB64($url) {
       return [Convert]::ToBase64String($bytes)
     } catch {
       if ($i -eq 4) { throw }
-      Write-Host "   fetch attempt $i failed ($($_.Exception.Message.Split([Environment]::NewLine)[0])) — retrying..." -ForegroundColor DarkYellow
+      Write-Host "   fetch attempt $i failed, retrying..." -ForegroundColor DarkYellow
       Start-Sleep -Seconds ($i * 3)
     }
   }
@@ -89,17 +89,17 @@ foreach ($s in $samples) {
   if ($dec) {
     Write-Host ("   decision: " + ($dec | ConvertTo-Json -Depth 6 -Compress))
   } else {
-    Write-Host "   decision: <none>  (STUB fallback or pre-decision backend build)" -ForegroundColor Yellow
+    Write-Host "   decision: none (STUB fallback or pre-decision backend build)" -ForegroundColor Yellow
   }
 }
 
 Write-Host ""
 if ($fail -eq 0) {
-  Write-Host "ENSEMBLE SMOKE PASSED — deepfake FAIL + real PASS, both via EXTERNAL worker. Live on Azure." -ForegroundColor Green
+  Write-Host "ENSEMBLE SMOKE PASSED - deepfake FAIL + real PASS, both via EXTERNAL worker. Live on Azure." -ForegroundColor Green
   exit 0
 } else {
-  Write-Host "SMOKE FAILED — see source/result above." -ForegroundColor Red
-  Write-Host "  source=STUB  -> backend can't reach the AI worker (check AI_SERVICE_URL + worker is running)." -ForegroundColor Yellow
+  Write-Host "SMOKE FAILED - see source/result above." -ForegroundColor Red
+  Write-Host "  source=STUB -> backend cannot reach the AI worker (check AI_SERVICE_URL + worker is running)." -ForegroundColor Yellow
   Write-Host "  source=EXTERNAL but deepfake PASS -> worker reached but verdict wrong (check worker image tag/logs)." -ForegroundColor Yellow
   exit 1
 }
