@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { BadGatewayException, BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import Stripe from 'stripe';
 
@@ -43,6 +43,28 @@ export class StripeService {
     return this.client !== null;
   }
 
+  /**
+   * Run a Stripe SDK call and convert any failure into a clean HTTP error
+   * instead of a bare 500. A misconfiguration (e.g. a price id that doesn't
+   * exist in this key's mode/account) is a 400 so the message is actionable;
+   * a genuine Stripe/upstream outage is a 502. The Stripe message + code are
+   * preserved so the cause is visible without digging through container logs.
+   */
+  private async stripeCall<T>(op: string, fn: () => Promise<T>): Promise<T> {
+    try {
+      return await fn();
+    } catch (err) {
+      const e = err as Stripe.errors.StripeError;
+      const detail = e?.message ?? String(err);
+      const code = e?.code ? ` [${e.code}]` : '';
+      this.logger.error(`Stripe ${op} failed: ${detail}${code}`);
+      if (e?.type === 'StripeInvalidRequestError') {
+        throw new BadRequestException(`Stripe ${op} failed: ${detail}${code}`);
+      }
+      throw new BadGatewayException(`Stripe ${op} failed: ${detail}${code}`);
+    }
+  }
+
   /** Find-or-create a Stripe customer for a tenant. Stub returns a fake id. */
   async ensureCustomer(args: {
     tenantId: string;
@@ -53,10 +75,12 @@ export class StripeService {
       return args.existingCustomerId ?? `cus_stub_${args.tenantId.slice(0, 8)}`;
     }
     if (args.existingCustomerId) return args.existingCustomerId;
-    const customer = await this.client.customers.create({
-      email: args.email,
-      metadata: { tenantId: args.tenantId },
-    });
+    const customer = await this.stripeCall('customers.create', () =>
+      this.client!.customers.create({
+        email: args.email,
+        metadata: { tenantId: args.tenantId },
+      }),
+    );
     return customer.id;
   }
 
@@ -74,15 +98,17 @@ export class StripeService {
         url: `https://stub.billing.local/checkout?tenant=${args.tenantId}&price=${args.priceId}`,
       };
     }
-    const session = await this.client.checkout.sessions.create({
-      mode: 'subscription',
-      customer: args.customerId,
-      line_items: [{ price: args.priceId, quantity: 1 }],
-      success_url: args.successUrl,
-      cancel_url: args.cancelUrl,
-      metadata: { tenantId: args.tenantId },
-      subscription_data: { metadata: { tenantId: args.tenantId } },
-    });
+    const session = await this.stripeCall('checkout.sessions.create', () =>
+      this.client!.checkout.sessions.create({
+        mode: 'subscription',
+        customer: args.customerId,
+        line_items: [{ price: args.priceId, quantity: 1 }],
+        success_url: args.successUrl,
+        cancel_url: args.cancelUrl,
+        metadata: { tenantId: args.tenantId },
+        subscription_data: { metadata: { tenantId: args.tenantId } },
+      }),
+    );
     return { id: session.id, url: session.url };
   }
 
@@ -94,10 +120,12 @@ export class StripeService {
     if (!this.client) {
       return { url: `https://stub.billing.local/portal?customer=${args.customerId}` };
     }
-    const session = await this.client.billingPortal.sessions.create({
-      customer: args.customerId,
-      return_url: args.returnUrl,
-    });
+    const session = await this.stripeCall('billingPortal.sessions.create', () =>
+      this.client!.billingPortal.sessions.create({
+        customer: args.customerId,
+        return_url: args.returnUrl,
+      }),
+    );
     return { url: session.url };
   }
 
