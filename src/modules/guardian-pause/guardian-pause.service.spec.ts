@@ -1,6 +1,32 @@
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { GuardianPauseService } from './guardian-pause.service';
 import { PauseResolution } from './dto/complete-pause.dto';
+
+/**
+ * Permissive-by-default ProtectionEnforcementService mock. CP-2 policy is
+ * unit-tested in protection-policy.service.spec.ts; here it just satisfies the
+ * constructor. Pass `{ block: true }` to simulate a policy that refuses
+ * CONTINUE_ANYWAY (Elder Mode strict lock / trusted-contact required).
+ */
+function makeEnforcement(opts: { block?: boolean } = {}) {
+  const decision = {
+    continueAnywayAllowed: !opts.block,
+    trustedContactReviewRequired: !!opts.block,
+    guardianPauseDurationSeconds: 30,
+    reasons: opts.block ? ['ELDER_MODE_STRICT_LOCK'] : [],
+  };
+  return {
+    raw: {
+      evaluate: jest.fn(async () => decision),
+      enforceDecision: jest.fn(async () => {
+        if (opts.block) {
+          throw new ForbiddenException({ message: 'blocked', reasons: decision.reasons });
+        }
+        return decision;
+      }),
+    } as never,
+  };
+}
 
 /** Minimal fake Prisma for the service's read/write surface. */
 function makePrisma(seed: {
@@ -76,7 +102,7 @@ describe('GuardianPauseService.start', () => {
     const prisma = makePrisma({});
     const evidence = makeEvidence();
     const events = makeEvents();
-    const svc = new GuardianPauseService(prisma.raw, evidence.raw, events.raw);
+    const svc = new GuardianPauseService(prisma.raw, evidence.raw, events.raw, makeEnforcement().raw);
 
     const row = await svc.start(USER, {
       riskLevel: 'MEDIUM',
@@ -111,7 +137,12 @@ describe('GuardianPauseService.start', () => {
 
   it('carries the prior CONTINUED_ANYWAY count onto the new pause', async () => {
     const prisma = makePrisma({ priorContinueAnyway: 3 });
-    const svc = new GuardianPauseService(prisma.raw, makeEvidence().raw, makeEvents().raw);
+    const svc = new GuardianPauseService(
+      prisma.raw,
+      makeEvidence().raw,
+      makeEvents().raw,
+      makeEnforcement().raw,
+    );
 
     await svc.start(USER, {
       riskLevel: 'HIGH',
@@ -125,7 +156,12 @@ describe('GuardianPauseService.start', () => {
   it('honours an explicit durationSeconds override', async () => {
     const prisma = makePrisma({});
     const events = makeEvents();
-    const svc = new GuardianPauseService(prisma.raw, makeEvidence().raw, events.raw);
+    const svc = new GuardianPauseService(
+      prisma.raw,
+      makeEvidence().raw,
+      events.raw,
+      makeEnforcement().raw,
+    );
 
     await svc.start(USER, {
       riskLevel: 'CRITICAL',
@@ -144,6 +180,7 @@ describe('GuardianPauseService.complete', () => {
       makePrisma({ existing: null }).raw,
       makeEvidence().raw,
       makeEvents().raw,
+      makeEnforcement().raw,
     );
     await expect(
       svc.complete(USER, 'nope', { resolution: PauseResolution.RESOLVED }),
@@ -157,6 +194,7 @@ describe('GuardianPauseService.complete', () => {
       }).raw,
       makeEvidence().raw,
       makeEvents().raw,
+      makeEnforcement().raw,
     );
     await expect(
       svc.complete(USER, 'pause-1', { resolution: PauseResolution.RESOLVED }),
@@ -169,7 +207,7 @@ describe('GuardianPauseService.complete', () => {
     });
     const evidence = makeEvidence();
     const events = makeEvents();
-    const svc = new GuardianPauseService(prisma.raw, evidence.raw, events.raw);
+    const svc = new GuardianPauseService(prisma.raw, evidence.raw, events.raw, makeEnforcement().raw);
     await svc.complete(USER, 'pause-1', {
       resolution: PauseResolution.RESOLVED,
       notes: 'I called my bank',
@@ -191,7 +229,12 @@ describe('GuardianPauseService.complete', () => {
       existing: { id: 'pause-1', status: 'ACTIVE', continueAnywayCount: 2 },
     });
     const evidence = makeEvidence();
-    const svc = new GuardianPauseService(prisma.raw, evidence.raw, makeEvents().raw);
+    const svc = new GuardianPauseService(
+      prisma.raw,
+      evidence.raw,
+      makeEvents().raw,
+      makeEnforcement().raw,
+    );
     await svc.complete(USER, 'pause-1', {
       resolution: PauseResolution.CONTINUED_ANYWAY,
     });
@@ -202,6 +245,23 @@ describe('GuardianPauseService.complete', () => {
     });
   });
 
+  it('CP-2: refuses CONTINUED_ANYWAY when protection policy blocks it (Elder Mode)', async () => {
+    const prisma = makePrisma({
+      existing: { id: 'pause-1', status: 'ACTIVE', riskLevel: 'CRITICAL', continueAnywayCount: 0 },
+    });
+    const svc = new GuardianPauseService(
+      prisma.raw,
+      makeEvidence().raw,
+      makeEvents().raw,
+      makeEnforcement({ block: true }).raw,
+    );
+    await expect(
+      svc.complete(USER, 'pause-1', { resolution: PauseResolution.CONTINUED_ANYWAY }),
+    ).rejects.toThrow(ForbiddenException);
+    // The block happens BEFORE the status transition — no terminal write.
+    expect(prisma.updates).toHaveLength(0);
+  });
+
   it('on EXPIRED, emits status: EXPIRED', async () => {
     const events = makeEvents();
     const svc = new GuardianPauseService(
@@ -210,6 +270,7 @@ describe('GuardianPauseService.complete', () => {
       }).raw,
       makeEvidence().raw,
       events.raw,
+      makeEnforcement().raw,
     );
     await svc.complete(USER, 'pause-1', {
       resolution: PauseResolution.EXPIRED,

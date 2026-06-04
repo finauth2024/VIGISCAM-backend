@@ -1,9 +1,13 @@
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
-import { GuardianPauseRiskLevel, GuardianPauseStatus, PauseEvent } from '@prisma/client';
+import { GuardianPauseRiskLevel, GuardianPauseStatus, PauseEvent, RiskLevel } from '@prisma/client';
 import { AuthenticatedUser } from '../../common/auth/auth.types';
 import { EventsService } from '../../common/events/events.service';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { EvidenceService } from '../evidence-vault/evidence.service';
+import {
+  DecisionKind,
+  ProtectionEnforcementService,
+} from '../protection-settings/protection-enforcement.service';
 import { CompletePauseDto, PauseResolution } from './dto/complete-pause.dto';
 import { StartPauseDto } from './dto/start-pause.dto';
 
@@ -18,12 +22,17 @@ const DEFAULT_PAUSE_DURATION_SECONDS = 30;
  * WebSocket on the user's room to render the countdown live.
  *
  * **Business rules** (per brief §1037 + §1053):
- *  - Elder Mode disables "Continue Anyway" — enforced in `complete()`
- *    once the Elder Mode flag lands (TODO marked).
- *  - CRITICAL risk requires trusted-contact review — set up in 9H
- *    (the trustedContactReviewId column is reserved for that join).
- *  - Repeated "Continue Anyway" against the same indicator increments
- *    `continueAnywayCount` on the next pause — tracked via metadata.
+ *  - Elder Mode / trusted-contact policy is enforced in `complete()` via the
+ *    shared `ProtectionEnforcementService` (CP-2): a `CONTINUED_ANYWAY`
+ *    resolution is refused (ForbiddenException + Evidence Vault + AuditLog)
+ *    when the user's protection settings disallow it — identical to ScamHold /
+ *    GiftCardGuard / WalletGuard / ClaimVerify.
+ *  - CRITICAL risk records a trusted-contact-review intent on `start()`; the
+ *    actual gate is the `complete()` enforcement above (the user cannot
+ *    continue through the pause without an approved review when policy requires
+ *    one).
+ *  - Repeated "Continue Anyway" increments `continueAnywayCount` on the next
+ *    pause — feeds the risk-up-on-repeat rule.
  *
  * **Audit.** Every state transition appends a hash-chained Evidence
  * Vault event so the chain-of-custody trail survives even if a row
@@ -37,6 +46,7 @@ export class GuardianPauseService {
     private readonly prisma: PrismaService,
     private readonly evidence: EvidenceService,
     private readonly events: EventsService,
+    private readonly enforcement: ProtectionEnforcementService,
   ) {}
 
   async start(user: AuthenticatedUser, dto: StartPauseDto): Promise<PauseEvent> {
@@ -98,13 +108,13 @@ export class GuardianPauseService {
     });
 
     if (dto.riskLevel === ('CRITICAL' as GuardianPauseRiskLevel)) {
-      // TODO(9H): create a TrustedContactReview here and stash the id on
-      // `trustedContactReviewId`. Until 9H ships, we log + emit the
-      // intent so trusted contacts have a path to act on it when the
-      // workflow comes online.
-      this.logger.warn(
-        `CRITICAL Guardian Pause ${linked.id} requires trusted-contact review ` +
-          '(workflow lands in 9H — not enforced yet).',
+      // A CRITICAL pause flags trusted-contact-review intent. The hard gate is
+      // applied in complete(): the shared ProtectionEnforcementService refuses a
+      // CONTINUED_ANYWAY resolution unless the user's policy allows it (and, when
+      // a review is required, an approved trusted-contact decision exists).
+      this.logger.log(
+        `CRITICAL Guardian Pause ${linked.id} — trusted-contact review intent ` +
+          'recorded; continue-anyway enforced at completion.',
       );
     }
 
@@ -126,10 +136,21 @@ export class GuardianPauseService {
       throw new BadRequestException(`Pause already in terminal state (${existing.status})`);
     }
 
-    // TODO(9H): if the user has Elder Mode enabled, reject
-    // CONTINUED_ANYWAY here unless a TrustedContactReview decision
-    // explicitly approved it. The flag isn't on the User model yet —
-    // lands with the families-module Elder Mode update in 9H.
+    // CP-2 enforcement (Elder Mode / trusted-contact): a CONTINUED_ANYWAY
+    // resolution is refused when the user's protection settings disallow it.
+    // Throws ForbiddenException + writes the blocked override to Evidence Vault
+    // + AuditLog — identical to the ScamHold/GiftCardGuard/WalletGuard/
+    // ClaimVerify release flow.
+    if (dto.resolution === PauseResolution.CONTINUED_ANYWAY) {
+      const decisionKind: DecisionKind = 'CONTINUE';
+      await this.enforcement.enforceDecision(user, {
+        module: 'GUARDIAN_PAUSE',
+        eventId: existing.id,
+        riskLevel: existing.riskLevel as unknown as RiskLevel,
+        amountMinor: null,
+        decisionKind,
+      });
+    }
 
     const nextStatus: GuardianPauseStatus =
       dto.resolution === PauseResolution.RESOLVED
