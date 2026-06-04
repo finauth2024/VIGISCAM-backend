@@ -1,0 +1,399 @@
+VIGISCAM backend — CP-0 proof run  2026-06-04T16:51:19Z
+v24.15.0
+11.12.1
+
+===================================================================
+### 1/7 npm ci
+### $ npm ci
+### started: 2026-06-04T16:51:20Z
+===================================================================
+npm warn deprecated inflight@1.0.6: This module is not supported, and leaks memory. Do not use it. Check out lru-cache if you want a good and tested way to coalesce async requests by a key value, which is much more comprehensive and powerful.
+npm warn deprecated glob@7.2.3: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
+npm warn deprecated glob@7.2.3: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
+npm warn deprecated glob@7.2.3: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
+npm warn deprecated glob@7.2.3: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
+npm warn deprecated scmp@2.1.0: Just use Node.js's crypto.timingSafeEqual()
+npm warn deprecated multer@1.4.5-lts.2: Multer 1.x is impacted by a number of vulnerabilities, which have been patched in 2.x. You should upgrade to the latest 2.x version.
+
+> vigiscam-backend@0.1.0 postinstall
+> prisma generate
+
+Environment variables loaded from .env
+Prisma schema loaded from prisma\schema.prisma
+┌─────────────────────────────────────────────────────────┐
+│  Update available 6.19.3 -> 7.8.0                       │
+│                                                         │
+│  This is a major update - please follow the guide at    │
+│  https://pris.ly/d/major-version-upgrade                │
+│                                                         │
+│  Run the following to update                            │
+│    npm i --save-dev prisma@latest                       │
+│    npm i @prisma/client@latest                          │
+└─────────────────────────────────────────────────────────┘
+
+✔ Generated Prisma Client (v6.19.3) to .\node_modules\@prisma\client in 353ms
+
+Start by importing your Prisma Client (See: https://pris.ly/d/importing-client)
+
+Tip: Interested in query caching in just a few lines of code? Try Accelerate today! https://pris.ly/tip-3-accelerate
+
+
+added 891 packages, and audited 892 packages in 36s
+
+169 packages are looking for funding
+  run `npm fund` for details
+
+found 0 vulnerabilities
+### exit code: 0  (finished 2026-06-04T16:51:56Z)
+
+===================================================================
+### 2/7 npx prisma generate
+### $ npx prisma generate
+### started: 2026-06-04T16:51:56Z
+===================================================================
+Environment variables loaded from .env
+Prisma schema loaded from prisma\schema.prisma
+
+✔ Generated Prisma Client (v6.19.3) to .\node_modules\@prisma\client in 362ms
+
+Start by importing your Prisma Client (See: https://pris.ly/d/importing-client)
+
+Tip: Need your database queries to be 1000x faster? Accelerate offers you that and more: https://pris.ly/tip-2-accelerate
+
+### exit code: 0  (finished 2026-06-04T16:51:59Z)
+
+===================================================================
+### 3/7 npm run typecheck
+### $ npm run typecheck
+### started: 2026-06-04T16:51:59Z
+===================================================================
+
+> vigiscam-backend@0.1.0 typecheck
+> tsc --noEmit
+
+### exit code: 0  (finished 2026-06-04T16:52:08Z)
+
+===================================================================
+### 4/7 npm test
+### $ npm test
+### started: 2026-06-04T16:52:08Z
+===================================================================
+
+> vigiscam-backend@0.1.0 test
+> jest
+
+PASS src/modules/clustering/clustering.spec.ts (15.083 s)
+PASS src/modules/risk-fusion-v2/insights-stub.spec.ts (16.309 s)
+PASS src/modules/giftcardguard/giftcardguard.scoring.spec.ts
+PASS src/modules/a1scamshield/a1scamshield.detection.spec.ts
+PASS src/modules/registry/safe-language.spec.ts
+PASS src/modules/walletguard/address-validators.spec.ts
+PASS src/modules/ai/embedding-stub.spec.ts
+PASS src/modules/claimverify/claimverify.scoring.spec.ts
+PASS src/modules/risk-fusion-v2/insights.client.spec.ts (17.287 s)
+[33m[Nest] 52972  - [39m06/04/2026, 12:52:28 PM [33m   WARN[39m [38;5;3m[InsightsClient] [39m[33mAI insights /insights/journey unreachable (Error: ECONNREFUSED); using stub fallback[39m
+[33m[Nest] 52972  - [39m06/04/2026, 12:52:28 PM [33m   WARN[39m [38;5;3m[InsightsClient] [39m[33mAI insights /insights/victim-state → 503; using stub fallback[39m
+PASS src/modules/scamhold/scamhold.scoring.spec.ts
+PASS src/modules/protection-settings/protection-policy.service.spec.ts
+PASS src/modules/ai/nlp-stub.spec.ts
+PASS src/common/blob/blob.service.spec.ts
+[33m[Nest] 55780  - [39m06/04/2026, 12:52:29 PM [33m   WARN[39m [38;5;3m[BlobService] [39m[33mNo Azure Storage env — Blob service is a no-op. Set AZURE_STORAGE_ACCOUNT (+ optional AZURE_STORAGE_CONNECTION_STRING) to enable evidence file uploads.[39m
+[33m[Nest] 55780  - [39m06/04/2026, 12:52:29 PM [33m   WARN[39m [38;5;3m[BlobService] [39m[33mNo Azure Storage env — Blob service is a no-op. Set AZURE_STORAGE_ACCOUNT (+ optional AZURE_STORAGE_CONNECTION_STRING) to enable evidence file uploads.[39m
+[33m[Nest] 55780  - [39m06/04/2026, 12:52:29 PM [33m   WARN[39m [38;5;3m[BlobService] [39m[33mBlob upload skipped — no container (file=x.pdf)[39m
+[33m[Nest] 55780  - [39m06/04/2026, 12:52:29 PM [33m   WARN[39m [38;5;3m[BlobService] [39m[33mNo Azure Storage env — Blob service is a no-op. Set AZURE_STORAGE_ACCOUNT (+ optional AZURE_STORAGE_CONNECTION_STRING) to enable evidence file uploads.[39m
+[33m[Nest] 55780  - [39m06/04/2026, 12:52:29 PM [33m   WARN[39m [38;5;3m[BlobService] [39m[33mgenerateReadUrl skipped — managed-identity SAS path is a 10A follow-up.[39m
+[32m[Nest] 55780  - [39m06/04/2026, 12:52:29 PM [32m    LOG[39m [38;5;3m[BlobService] [39m[32mBlob service ready (account=stvigiscamdev, container=evidence)[39m
+[32m[Nest] 55780  - [39m06/04/2026, 12:52:29 PM [32m    LOG[39m [38;5;3m[BlobService] [39m[32mBlob service ready (account=fake, container=evidence)[39m
+PASS src/modules/claimverify/claim-indicators.spec.ts (19.651 s)
+PASS src/modules/evidence-vault/evidence-file.service.spec.ts (20.105 s)
+PASS src/modules/bank-portal/bank-portal.service.spec.ts
+PASS src/modules/platform-portal/platform-portal.service.spec.ts
+PASS src/modules/internal-admin/oversight.service.spec.ts (22.317 s)
+PASS src/modules/investigator-portal/investigator-portal.service.spec.ts
+PASS src/modules/health/health.controller.spec.ts
+PASS src/modules/scammirror/scammirror.service.spec.ts (5.622 s)
+PASS src/modules/walletguard/walletguard.service.spec.ts (23.03 s)
+[33m[Nest] 52972  - [39m06/04/2026, 12:52:33 PM [33m   WARN[39m [38;5;3m[ScamMirrorService] [39m[33mScamMirror sess-1 aborted: CREDIT_CARD (pause=pause-1)[39m
+PASS src/common/queue/queue-metrics.service.spec.ts
+PASS src/modules/claimverify/claimverify.service.spec.ts (23.092 s)
+[32m[Nest] 46340  - [39m06/04/2026, 12:52:33 PM [32m    LOG[39m [38;5;3m[ClaimVerifyService] [39m[32mClaim claim-1: fed EMAIL indicator into ScamPulse (signal sig-1).[39m
+[32m[Nest] 46340  - [39m06/04/2026, 12:52:33 PM [32m    LOG[39m [38;5;3m[ClaimVerifyService] [39m[32mClaim claim-1: fed FAKE_COMPANY indicator into ScamPulse (signal sig-1).[39m
+[32m[Nest] 46340  - [39m06/04/2026, 12:52:33 PM [32m    LOG[39m [38;5;3m[ClaimVerifyService] [39m[32mClaim claim-1: fed DOMAIN indicator into ScamPulse (signal sig-1).[39m
+PASS src/common/queue/queue.service.spec.ts
+PASS src/modules/ai/ai-status.service.spec.ts
+PASS src/common/cache/cache.service.spec.ts
+[33m[Nest] 18124  - [39m06/04/2026, 12:52:34 PM [33m   WARN[39m [38;5;3m[QueueService] [39m[33mNo REDIS_URL — queue enqueue is a no-op. Set REDIS_URL to enable background processing.[39m
+[33m[Nest] 18124  - [39m06/04/2026, 12:52:34 PM [33m   WARN[39m [38;5;3m[QueueService] [39m[33mNo REDIS_URL — queue enqueue is a no-op. Set REDIS_URL to enable background processing.[39m
+[33m[Nest] 18124  - [39m06/04/2026, 12:52:34 PM [33m   WARN[39m [38;5;3m[QueueService] [39m[33mNo REDIS_URL — queue enqueue is a no-op. Set REDIS_URL to enable background processing.[39m
+[33m[Nest] 18124  - [39m06/04/2026, 12:52:34 PM [33m   WARN[39m [38;5;3m[QueueService] [39m[33mSkipping enqueue on "notification-delivery" — no Redis connection. Payload was dropped.[39m
+[33m[Nest] 18124  - [39m06/04/2026, 12:52:34 PM [33m   WARN[39m [38;5;3m[QueueService] [39m[33mNo REDIS_URL — queue enqueue is a no-op. Set REDIS_URL to enable background processing.[39m
+[33m[Nest] 57996  - [39m06/04/2026, 12:52:34 PM [33m   WARN[39m [38;5;3m[NotificationService] [39m[33mNotification delivery-1 failed (upstream 500); enqueued for retry[39m
+[33m[Nest] 48652  - [39m06/04/2026, 12:52:34 PM [33m   WARN[39m [38;5;3m[TrustedContactReviewService] [39m[33mrequestReview: user=user-1 has no eligible trusted contact — skipping[39m
+PASS src/modules/trusted-contact-review/trusted-contact-review.service.spec.ts
+PASS src/modules/notifications/notification.service.spec.ts
+[32m[Nest] 48652  - [39m06/04/2026, 12:52:34 PM [32m    LOG[39m [38;5;3m[TrustedContactReviewService] [39m[32mTrusted-contact review tcr-1 → APPROVE_AFTER_VERIFICATION (module=SCAMHOLD)[39m
+[32m[Nest] 48652  - [39m06/04/2026, 12:52:34 PM [32m    LOG[39m [38;5;3m[TrustedContactReviewService] [39m[32mTrusted-contact review tcr-1 → REJECT_HIGH_RISK (module=SCAMHOLD)[39m
+PASS src/common/events/events.gateway.spec.ts
+PASS src/modules/billing/billing.service.spec.ts
+PASS src/modules/model-governance/model-governance.spec.ts
+[33m[Nest] 21896  - [39m06/04/2026, 12:52:34 PM [33m   WARN[39m [38;5;3m[EventsGateway] [39m[33mSocket sock-1 rejected: missing bearer[39m
+[33m[Nest] 21896  - [39m06/04/2026, 12:52:34 PM [33m   WARN[39m [38;5;3m[EventsGateway] [39m[33mSocket sock-1 rejected: Error: invalid signature[39m
+[33m[Nest] 21896  - [39m06/04/2026, 12:52:34 PM [33m   WARN[39m [38;5;3m[EventsGateway] [39m[33mSocket sock-1 rejected: Error: not an access token[39m
+[32m[Nest] 21896  - [39m06/04/2026, 12:52:34 PM [32m    LOG[39m [38;5;3m[EventsGateway] [39m[32mSocket sock-1 connected as user=user-1 tenant=tenant-A[39m
+[32m[Nest] 21896  - [39m06/04/2026, 12:52:34 PM [32m    LOG[39m [38;5;3m[EventsGateway] [39m[32mSocket sock-1 connected as user=user-1 tenant=tenant-A[39m
+[32m[Nest] 21896  - [39m06/04/2026, 12:52:34 PM [32m    LOG[39m [38;5;3m[EventsGateway] [39m[32mSocket sock-1 connected as user=user-1 tenant=tenant-A[39m
+PASS src/modules/detection-rules/suggestions.spec.ts
+PASS src/modules/osint/providers/osint-provider.registry.spec.ts
+PASS src/common/cache/cache-invalidation-bus.spec.ts
+PASS src/modules/authenticity/authenticity-stub.spec.ts
+PASS src/modules/giftcardguard/giftcardguard.service.spec.ts (23.892 s)
+PASS src/modules/scam-signals/normalization.spec.ts
+PASS src/modules/identity-graph/identity-collision.service.spec.ts
+[32m[Nest] 18124  - [39m06/04/2026, 12:52:34 PM [32m    LOG[39m [38;5;3m[CacheInvalidationBus] [39m[32mNo REDIS_URL — cache invalidation is single-process only. Set REDIS_URL to enable cross-process invalidation.[39m
+[32m[Nest] 18124  - [39m06/04/2026, 12:52:34 PM [32m    LOG[39m [38;5;3m[CacheInvalidationBus] [39m[32mNo REDIS_URL — cache invalidation is single-process only. Set REDIS_URL to enable cross-process invalidation.[39m
+[32m[Nest] 48652  - [39m06/04/2026, 12:52:34 PM [32m    LOG[39m [38;5;3m[IdentityCollisionService] [39m[32mIdentity collision search: type=email seedRisk=85 nodes=2 clusters=1[39m
+PASS src/modules/identity-graph/identity-graph.service.spec.ts
+PASS src/modules/walletguard/walletguard.scoring.spec.ts
+PASS src/modules/enterprise-portal/policy-registry.spec.ts
+PASS src/modules/risk-fusion-v2/fusion.spec.ts
+PASS src/modules/partner-keys/plan-limits.spec.ts
+PASS src/modules/registry/registry.mapper.spec.ts
+PASS src/modules/scammirror/sanitizer.spec.ts
+PASS src/modules/fraud-graph/record-node.spec.ts
+PASS src/modules/guardian-pause/guardian-pause.service.spec.ts (23.982 s)
+PASS src/modules/enterprise-portal/enterprise-portal.service.spec.ts
+[32m[Nest] 57996  - [39m06/04/2026, 12:52:34 PM [32m    LOG[39m [38;5;3m[IdentityGraphService] [39m[32mIdentity Graph cluster export: campaign=camp-1 members=1 evidence=ev-1[39m
+[32m[Nest] 31364  - [39m06/04/2026, 12:52:34 PM [32m    LOG[39m [38;5;3m[GuardianPauseService] [39m[32mCRITICAL Guardian Pause pause-1 — trusted-contact review intent recorded; continue-anyway enforced at completion.[39m
+PASS src/common/billing/plan-rank.spec.ts
+PASS src/modules/scam-check/scam-check.scoring.spec.ts
+PASS src/modules/osint/osint-stub.spec.ts
+PASS src/modules/scamhold/scamhold.service.spec.ts (24.03 s)
+PASS src/modules/detection-rules/suggestions-phrase.spec.ts
+PASS src/modules/evidence-vault/evidence.hash.spec.ts
+PASS src/common/cors/cors-matcher.spec.ts
+PASS src/modules/public-alerts/public-alert.transitions.spec.ts
+PASS src/modules/bank-portal/teller-assist.scorer.spec.ts
+PASS src/modules/scammirror/tactics.spec.ts
+PASS src/bigint-json.spec.ts
+PASS src/modules/risk-fusion/risk.scoring.spec.ts
+PASS src/modules/identity-graph/masker.spec.ts
+PASS src/modules/platform-portal/grooming.scorer.spec.ts
+PASS src/modules/detection-rules/detection-rule.transitions.spec.ts
+
+Test Suites: 64 passed, 64 total
+Tests:       437 passed, 437 total
+Snapshots:   0 total
+Time:        25.504 s, estimated 33 s
+Ran all test suites.
+### exit code: 0  (finished 2026-06-04T16:52:35Z)
+
+===================================================================
+### 5/7 npm run build
+### $ npm run build
+### started: 2026-06-04T16:52:35Z
+===================================================================
+
+> vigiscam-backend@0.1.0 build
+> nest build
+
+### exit code: 0  (finished 2026-06-04T16:52:45Z)
+
+NOTE: 6/7 and 7/7 need a reachable Postgres. The pre-seeded .env points at a
+local :5432 instance whose credentials weren't ours, so we stood up a throwaway
+PostgreSQL 16 cluster on :5433 (role vigiscam, trust auth) and ran both against
+it. The runtime DATABASE_URL is the only override; no source was changed.
+
+===================================================================
+### 6/7 npm run prisma:deploy   (against throwaway PG 16 on :5433)
+### $ npm run prisma:deploy
+### started: 2026-06-04T17:01:04Z
+===================================================================
+
+> vigiscam-backend@0.1.0 prisma:deploy
+> prisma migrate deploy
+
+Environment variables loaded from .env
+Prisma schema loaded from prisma\schema.prisma
+Datasource "db": PostgreSQL database "vigiscam", schema "public" at "localhost:5433"
+
+47 migrations found in prisma/migrations
+
+Applying migration `0001_init`
+Applying migration `0002_identity`
+Applying migration `0003_devices_sessions`
+Applying migration `0004_evidence_vault`
+Applying migration `0005_risk_intervention`
+Applying migration `0006_family_guardian`
+Applying migration `0007_scam_pulse`
+Applying migration `0008_registry_appeals`
+Applying migration `0009_takedown_requests`
+Applying migration `0010_internal_tenant`
+Applying migration `0011_registry_public_status`
+Applying migration `0012_scam_clusters`
+Applying migration `0013_detection_rules`
+Applying migration `0014_partner_api_keys`
+Applying migration `0015_webhooks`
+Applying migration `0016_evidence_export_bundles`
+Applying migration `0017_ai_decisions`
+Applying migration `0018_signal_embeddings`
+Applying migration `0019_fraud_graph`
+Applying migration `0020_authenticity_checks`
+Applying migration `0021_risk_fusion_v2`
+Applying migration `0022_osint_enrichments`
+Applying migration `0023_registry_search_indexes`
+Applying migration `0024_campaign_membership_edge`
+Applying migration `0025_agency_feeds`
+Applying migration `0026_takedown_provider_templates`
+Applying migration `0027_partner_key_plans`
+Applying migration `0028_public_alerts`
+Applying migration `0029_notification_deliveries`
+Applying migration `0030_guardian_pause`
+Applying migration `0031_scamhold`
+Applying migration `0032_giftcardguard`
+Applying migration `0033_walletguard`
+Applying migration `0034_claimverify`
+Applying migration `0035_scammirror`
+Applying migration `0036_identity_graph_upgrade`
+Applying migration `0037_trusted_contact_review`
+Applying migration `0038_evidence_files`
+Applying migration `0039_bank_portal`
+Applying migration `0040_platform_portal`
+Applying migration `0041_investigator_cases`
+Applying migration `0042_enterprise_portal`
+Applying migration `0043_billing`
+Applying migration `0044_billing_plan_string`
+Applying migration `0045_protection_settings`
+Applying migration `0046_ai_governance`
+Applying migration `0047_notification_tracking`
+
+The following migration(s) have been applied:
+
+migrations/
+  └─ 0001_init/
+    └─ migration.sql
+  └─ 0002_identity/
+    └─ migration.sql
+  └─ 0003_devices_sessions/
+    └─ migration.sql
+  └─ 0004_evidence_vault/
+    └─ migration.sql
+  └─ 0005_risk_intervention/
+    └─ migration.sql
+  └─ 0006_family_guardian/
+    └─ migration.sql
+  └─ 0007_scam_pulse/
+    └─ migration.sql
+  └─ 0008_registry_appeals/
+    └─ migration.sql
+  └─ 0009_takedown_requests/
+    └─ migration.sql
+  └─ 0010_internal_tenant/
+    └─ migration.sql
+  └─ 0011_registry_public_status/
+    └─ migration.sql
+  └─ 0012_scam_clusters/
+    └─ migration.sql
+  └─ 0013_detection_rules/
+    └─ migration.sql
+  └─ 0014_partner_api_keys/
+    └─ migration.sql
+  └─ 0015_webhooks/
+    └─ migration.sql
+  └─ 0016_evidence_export_bundles/
+    └─ migration.sql
+  └─ 0017_ai_decisions/
+    └─ migration.sql
+  └─ 0018_signal_embeddings/
+    └─ migration.sql
+  └─ 0019_fraud_graph/
+    └─ migration.sql
+  └─ 0020_authenticity_checks/
+    └─ migration.sql
+  └─ 0021_risk_fusion_v2/
+    └─ migration.sql
+  └─ 0022_osint_enrichments/
+    └─ migration.sql
+  └─ 0023_registry_search_indexes/
+    └─ migration.sql
+  └─ 0024_campaign_membership_edge/
+    └─ migration.sql
+  └─ 0025_agency_feeds/
+    └─ migration.sql
+  └─ 0026_takedown_provider_templates/
+    └─ migration.sql
+  └─ 0027_partner_key_plans/
+    └─ migration.sql
+  └─ 0028_public_alerts/
+    └─ migration.sql
+  └─ 0029_notification_deliveries/
+    └─ migration.sql
+  └─ 0030_guardian_pause/
+    └─ migration.sql
+  └─ 0031_scamhold/
+    └─ migration.sql
+  └─ 0032_giftcardguard/
+    └─ migration.sql
+  └─ 0033_walletguard/
+    └─ migration.sql
+  └─ 0034_claimverify/
+    └─ migration.sql
+  └─ 0035_scammirror/
+    └─ migration.sql
+  └─ 0036_identity_graph_upgrade/
+    └─ migration.sql
+  └─ 0037_trusted_contact_review/
+    └─ migration.sql
+  └─ 0038_evidence_files/
+    └─ migration.sql
+  └─ 0039_bank_portal/
+    └─ migration.sql
+  └─ 0040_platform_portal/
+    └─ migration.sql
+  └─ 0041_investigator_cases/
+    └─ migration.sql
+  └─ 0042_enterprise_portal/
+    └─ migration.sql
+  └─ 0043_billing/
+    └─ migration.sql
+  └─ 0044_billing_plan_string/
+    └─ migration.sql
+  └─ 0045_protection_settings/
+    └─ migration.sql
+  └─ 0046_ai_governance/
+    └─ migration.sql
+  └─ 0047_notification_tracking/
+    └─ migration.sql
+      
+All migrations have been successfully applied.
+### exit code: 0  (finished 2026-06-04T17:01:08Z)
+
+===================================================================
+### 7/7 npm run start:dev   (against throwaway PG 16 on :5433)
+### $ npm run start:dev
+===================================================================
+[13:10:21.449] [32mINFO[39m (29804): [36mMapped {/api/enterprise-portal/policies/registry, GET} (version: 1) route[39m [90m{"context":"RouterExplorer"}[39m
+[13:10:21.449] [32mINFO[39m (29804): [36mMapped {/api/enterprise-portal/policies, GET} (version: 1) route[39m [90m{"context":"RouterExplorer"}[39m
+[13:10:21.449] [32mINFO[39m (29804): [36mMapped {/api/enterprise-portal/policies/:key, GET} (version: 1) route[39m [90m{"context":"RouterExplorer"}[39m
+[13:10:21.449] [32mINFO[39m (29804): [36mMapped {/api/enterprise-portal/policies/:key, PUT} (version: 1) route[39m [90m{"context":"RouterExplorer"}[39m
+[13:10:21.449] [32mINFO[39m (29804): [36mMapped {/api/enterprise-portal/policies/:key, DELETE} (version: 1) route[39m [90m{"context":"RouterExplorer"}[39m
+[13:10:21.449] [32mINFO[39m (29804): [36mMapped {/api/enterprise-portal/devices, GET} (version: 1) route[39m [90m{"context":"RouterExplorer"}[39m
+[13:10:21.449] [32mINFO[39m (29804): [36mMapped {/api/enterprise-portal/integrations, GET} (version: 1) route[39m [90m{"context":"RouterExplorer"}[39m
+[13:10:21.449] [32mINFO[39m (29804): [36mMapped {/api/enterprise-portal/integrations, POST} (version: 1) route[39m [90m{"context":"RouterExplorer"}[39m
+[13:10:21.449] [32mINFO[39m (29804): [36mMapped {/api/enterprise-portal/integrations/:id, DELETE} (version: 1) route[39m [90m{"context":"RouterExplorer"}[39m
+[13:10:21.449] [32mINFO[39m (29804): [36mMapped {/api/enterprise-portal/audit-log, GET} (version: 1) route[39m [90m{"context":"RouterExplorer"}[39m
+[13:10:21.449] [32mINFO[39m (29804): [36mMapped {/api/enterprise-portal/billing, GET} (version: 1) route[39m [90m{"context":"RouterExplorer"}[39m
+[13:10:21.449] [32mINFO[39m (29804): [36mBillingController {/api/billing} (version: 1):[39m [90m{"context":"RoutesResolver"}[39m
+[13:10:21.449] [32mINFO[39m (29804): [36mMapped {/api/billing/subscription, GET} (version: 1) route[39m [90m{"context":"RouterExplorer"}[39m
+[13:10:21.449] [32mINFO[39m (29804): [36mMapped {/api/billing/checkout, POST} (version: 1) route[39m [90m{"context":"RouterExplorer"}[39m
+[13:10:21.449] [32mINFO[39m (29804): [36mMapped {/api/billing/portal, POST} (version: 1) route[39m [90m{"context":"RouterExplorer"}[39m
+[13:10:21.449] [32mINFO[39m (29804): [36mMapped {/api/billing/manual-invoice/:tenantId, POST} (version: 1) route[39m [90m{"context":"RouterExplorer"}[39m
+[13:10:21.449] [32mINFO[39m (29804): [36mMapped {/api/billing/events, GET} (version: 1) route[39m [90m{"context":"RouterExplorer"}[39m
+[13:10:21.449] [32mINFO[39m (29804): [36mMapped {/api/billing/webhook, POST} (version: 1) route[39m [90m{"context":"RouterExplorer"}[39m
+[13:10:21.449] [32mINFO[39m (29804): [36mNest application successfully started[39m [90m{"context":"NestApplication"}[39m
+[13:10:21.449] [32mINFO[39m (29804): [36mVIGISCAM backend listening on port 3000 — base path /api, docs at /api/docs[39m [90m{"context":"Bootstrap"}[39m
+
+### local runtime probes (app serving on :3000):
+GET /api/v1/health/live  -> 200
+GET /api/v1/health/ready -> 200  {"status":"ok","service":"vigiscam-backend","checks":{"database":{"status":"up"}},"timestamp":"2026-06-04T17:10:49.418Z"}
+GET /api/docs            -> 200
+### exit code: 0 (app booted, connected to DB, served; Ctrl-C to stop in dev)
